@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FACTTOS</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7B2FF7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FACTTOS">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" type="image/png" href="icons/favicon-48.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
@@ -49,10 +57,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--me);outline-off
 .back{display:none}
 .top .t{font-weight:600}.top .s{font-size:13px;color:var(--mute)}
 .msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;min-height:0;background:var(--bg)}
-.b{max-width:78%;padding:9px 13px;border-radius:18px;background:var(--them);border:1px solid var(--line);line-height:1.35;overflow-wrap:anywhere;align-self:flex-start;border-bottom-left-radius:5px}
-.b.me{align-self:flex-end;background:var(--me);color:var(--me-ink);border-color:transparent;border-bottom-left-radius:18px;border-bottom-right-radius:5px}
-.b .who{display:block;font-size:12px;font-weight:600;margin-bottom:2px;color:var(--me)}
+.b{max-width:78%;padding:9px 13px;border-radius:18px;background:#fff;color:#1E1033;border:1px solid #E5D9F2;line-height:1.35;overflow-wrap:anywhere;align-self:flex-start;border-bottom-left-radius:5px}
+.b.me{align-self:flex-end;background:#7B2FF7;color:#fff;border-color:transparent;border-bottom-left-radius:18px;border-bottom-right-radius:5px}
+.b .who{display:block;font-size:12px;font-weight:600;margin-bottom:2px;color:#7B2FF7}
 .b time{display:block;font-size:11px;opacity:.6;margin-top:3px;text-align:right}
+.b.me{cursor:pointer}
 .bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);background:var(--panel)}
 .bar input{flex:1;min-width:0;padding:12px 16px;border-radius:22px;border:0;background:var(--input);color:var(--ink);font:inherit}
 .empty{display:grid;place-items:center;height:100%;color:var(--mute);text-align:center;padding:24px}
@@ -108,12 +117,22 @@ dialog h2{margin:0 0 12px;font-size:20px}
   </form>
 </dialog>
 
+<dialog id="md">
+  <form id="mf">
+    <h2>Ton message</h2>
+    <input class="field" id="etx" maxlength="2000" autocomplete="off" aria-label="Modifier le message">
+    <p class="msg" id="em" hidden></p>
+    <div class="act"><button type="button" id="ecan" style="padding:10px 14px">Annuler</button><button type="button" id="edel" style="padding:10px 14px;color:#D6336C;font-weight:600">Supprimer</button><button class="send" type="submit">Enregistrer</button></div>
+  </form>
+</dialog>
+
 <script>
 (function(){
 var SB_URL="https://eduqrmfgbrssihoglunw.supabase.co";
 var SB_KEY="sb_publishable_oQ0OYehrx485wazISydORQ__BGD3iXV";
 var sb=supabase.createClient(SB_URL,SB_KEY);
-var COLORS=["#7B2FF7","#E8387A","#5B3DF5","#C026D3","#F0508C","#9333EA","#D6336C"];
+var COLORS=["#7B2FF7","#E8387A","#0EA5A4","#F59E0B","#2563EB","#16A34A","#EA580C","#DB2777"];
+function hash(s){var h=0;s=String(s);for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h}
 var me=null,convs=[],cur=null,msgs={},names={},signup=false,chan=null;
 var $=function(i){return document.getElementById(i)};
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -121,7 +140,7 @@ function hm(t){return new Date(t).toLocaleTimeString("fr-FR",{hour:"2-digit",min
 function day(t){var d=new Date(t);return d.toDateString()==new Date().toDateString()?hm(t):d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}
 function say(el,t,ok){el.hidden=!t;el.textContent=t||"";el.className="msg"+(ok?" ok":"")}
 function title(c){if(c.group)return c.name||"Groupe";var o=c.members.filter(function(u){return u!==me.id})[0];return names[o]||"Contact"}
-function avatar(c){return '<span class="av'+(c.group?' g':'')+'" style="background:'+COLORS[c.idx%COLORS.length]+'">'+esc(title(c).charAt(0).toUpperCase())+'</span>'}
+function avatar(c){return '<span class="av'+(c.group?' g':'')+'" style="background:'+COLORS[hash(title(c))%COLORS.length]+'">'+esc(title(c).charAt(0).toUpperCase())+'</span>'}
 
 /* ---- Connexion / inscription ---- */
 function mode(s){signup=s;$("an").hidden=!s;$("an").required=s;$("ab").textContent=s?"Créer mon compte":"Se connecter";$("at").textContent=s?"Déjà un compte ? Se connecter":"Pas de compte ? Créer un compte";$("sub").textContent=s?"Crée ton compte FACTTOS en quelques secondes.":"Connecte-toi pour retrouver tes conversations.";$("ap").autocomplete=s?"new-password":"current-password";say($("am"),"")}
@@ -175,16 +194,18 @@ function renderList(){
 function renderChat(){
   var c=convs.filter(function(x){return x.id===cur})[0];
   if(!c){$("chat").innerHTML='<div class="empty">Choisis une conversation<br>ou crée-en une avec ＋</div>';return}
+  var prev=$("txt"),keep=(prev&&renderedFor===c.id)?prev.value:"",had=prev&&document.activeElement===prev;
   var h='<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div><div class="t">'+esc(title(c))+'</div><div class="s">'+(c.group?c.members.length+' participants':'Conversation privée')+'</div></div></div><div class="msgs" id="msgs">';
   var list=msgs[c.id]||[];
   if(!list.length)h+='<div class="empty">Dis bonjour 👋</div>';
   list.forEach(function(m){
     var mine=m.sender_id==me.id;
-    h+='<div class="b'+(mine?' me':'')+'">'+(c.group&&!mine?'<span class="who">'+esc(names[m.sender_id]||"?")+'</span>':'')+esc(m.body)+'<time>'+hm(m.created_at)+'</time></div>';
+    h+='<div class="b'+(mine?' me':'')+'" data-id="'+m.id+'">'+(c.group&&!mine?'<span class="who">'+esc(names[m.sender_id]||"?")+'</span>':'')+esc(m.body)+'<time>'+(m.edited_at?'modifié · ':'')+hm(m.created_at)+'</time></div>';
   });
   h+='</div><form class="bar" id="bar"><input type="text" id="txt" placeholder="Écrire un message" autocomplete="off" aria-label="Message"><button class="send" type="submit">Envoyer</button></form>';
-  $("chat").innerHTML=h;
+  $("chat").innerHTML=h;renderedFor=c.id;$("txt").value=keep;if(had)$("txt").focus();
   var box=$("msgs");box.scrollTop=box.scrollHeight;
+  box.onclick=function(e){var b=e.target.closest(".b.me");if(b)openEdit(b.dataset.id)};
   $("back").onclick=function(){cur=null;$("app").classList.remove("open");renderList();renderChat()};
   $("bar").onsubmit=async function(e){
     e.preventDefault();var v=$("txt").value.trim();if(!v)return;$("txt").value="";
@@ -207,6 +228,35 @@ async function open(id){
   var r=await sb.from("messages").select("*").eq("conversation_id",id).order("created_at").limit(200);
   msgs[id]=r.data||[];renderChat();
 }
+var editing=null,renderedFor=null;
+function findMsg(id){for(var k in msgs){var l=msgs[k];for(var i=0;i<l.length;i++)if(l[i].id==id)return l[i]}return null}
+function openEdit(id){var m=findMsg(id);if(!m)return;editing=m;$("etx").value=m.body;say($("em"),"");$("md").showModal()}
+function applyUpdate(n){
+  var m=findMsg(n.id);if(!m)return;
+  m.body=n.body;m.edited_at=n.edited_at;
+  renderList();renderChat();
+}
+function applyDelete(id){
+  var hit=false;
+  for(var k in msgs){var b=msgs[k].length;msgs[k]=msgs[k].filter(function(x){return x.id!=id});if(msgs[k].length!==b)hit=true}
+  if(hit)loadConvs().then(renderChat);
+}
+$("mf").onsubmit=async function(e){
+  e.preventDefault();if(!editing)return;
+  var v=$("etx").value.trim();
+  if(!v){say($("em"),"Le message ne peut pas être vide. Utilise « Supprimer » pour le retirer.");return}
+  if(v===editing.body){$("md").close();return}
+  var r=await sb.from("messages").update({body:v,edited_at:new Date().toISOString()}).eq("id",editing.id).select().single();
+  if(r.error){say($("em"),r.error.message);return}
+  $("md").close();applyUpdate(r.data);
+};
+$("edel").onclick=async function(){
+  if(!editing||!confirm("Supprimer ce message pour tout le monde ?"))return;
+  var r=await sb.from("messages").delete().eq("id",editing.id).select();
+  if(r.error||!r.data||!r.data.length){say($("em"),r.error?r.error.message:"Suppression impossible.");return}
+  $("md").close();applyDelete(editing.id);
+};
+$("ecan").onclick=function(){$("md").close()};
 function listen(){
   if(chan)return;
   chan=sb.channel("facttos-messages").on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},async function(p){
@@ -214,7 +264,8 @@ function listen(){
     if(!convs.some(function(c){return c.id===m.conversation_id}))await loadConvs();
     if(!names[m.sender_id]){var q=await sb.from("profiles").select("id,name").eq("id",m.sender_id).single();if(q.data)names[q.data.id]=q.data.name}
     add(m);
-  }).subscribe();
+  }).on("postgres_changes",{event:"UPDATE",schema:"public",table:"messages"},function(p){applyUpdate(p.new)
+  }).on("postgres_changes",{event:"DELETE",schema:"public",table:"messages"},function(p){applyDelete(p.old.id)}).subscribe();
 }
 $("list").onclick=function(e){var b=e.target.closest(".row");if(b)open(b.dataset.id)};
 
@@ -246,6 +297,8 @@ $("f").onsubmit=async function(e){
   if(r.error){say($("nm"),r.error.message);return}
   $("dlg").close();await loadConvs();open(c.data.id);
 };
+
+if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
 
 /* ---- Démarrage ---- */
 sb.auth.getSession().then(function(r){
