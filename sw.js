@@ -1,5 +1,5 @@
-var CACHE="facttos-v1";
-var SHELL=["./","./index.html","./manifest.json","./icons/icon-192.png","./icons/icon-512.png"];
+var CACHE="facttos-v2";
+var SHELL=["./","./index.html","./manifest.json","./icon-192.png","./icon-512.png"];
 self.addEventListener("install",function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll(SHELL)}));
   self.skipWaiting();
