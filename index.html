@@ -94,7 +94,6 @@ dialog h2{margin:0 0 12px;font-size:20px}
     <button class="link" id="at" type="button">Pas de compte ? Créer un compte</button>
   </div>
 </section>
-
 <div class="app" id="app" hidden>
   <aside class="side">
     <div class="brand"><div class="logo" aria-label="FACTTOS">FAC<i>TT</i>OS</div>
@@ -104,9 +103,225 @@ dialog h2{margin:0 0 12px;font-size:20px}
   </aside>
   <main class="chat" id="chat"></main>
 </div>
-
 <dialog id="dlg">
   <form method="dialog" id="f">
     <h2>Nouvelle conversation</h2>
     <textarea class="field" id="ne" rows="2" placeholder="E-mail du contact. Pour un groupe : plusieurs e-mails séparés par une virgule, un espace ou un retour à la ligne" required autocomplete="off" style="resize:vertical"></textarea>
     <div class="chk"><input type="checkbox" id="ng"><label for="ng">C'est un groupe</label></div>
+    <input class="field" id="ngn" placeholder="Nom du groupe" maxlength="30" hidden>
+    <p class="msg" id="nm" hidden></p>
+    <div class="act"><button type="button" id="cancel" style="padding:10px 14px">Annuler</button><button class="send" type="submit">Créer</button></div>
+  </form>
+</dialog>
+<dialog id="md">
+  <form id="mf">
+    <h2>Ton message</h2>
+    <input class="field" id="etx" maxlength="2000" autocomplete="off" aria-label="Modifier le message">
+    <p class="msg" id="em" hidden></p>
+    <div class="act"><button type="button" id="ecan" style="padding:10px 14px">Annuler</button><button type="button" id="edel" style="padding:10px 14px;color:#D6336C;font-weight:600">Supprimer</button><button class="send" type="submit">Enregistrer</button></div>
+  </form>
+</dialog>
+<dialog id="gd">
+  <form id="gf">
+    <h2>Ajouter au groupe</h2>
+    <textarea class="field" id="ge" rows="2" placeholder="E-mails des personnes à ajouter (séparés par une virgule, un espace ou un retour à la ligne)" required autocomplete="off" style="resize:vertical"></textarea>
+    <p class="msg" id="gm" hidden></p>
+    <div class="act"><button type="button" id="gcan" style="padding:10px 14px">Annuler</button><button class="send" type="submit">Ajouter</button></div>
+  </form>
+</dialog>
+<script>
+(function(){
+var SB_URL="https://eduqrmfgbrssihoglunw.supabase.co";
+var SB_KEY="sb_publishable_oQ0OYehrx485wazISydORQ__BGD3iXV";
+var sb=supabase.createClient(SB_URL,SB_KEY);
+var COLORS=["#7B2FF7","#E8387A","#0EA5A4","#F59E0B","#2563EB","#16A34A","#EA580C","#DB2777"];
+function hash(s){var h=0;s=String(s);for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h}
+var me=null,convs=[],cur=null,msgs={},names={},signup=false,chan=null;
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function hm(t){return new Date(t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+function day(t){var d=new Date(t);return d.toDateString()==new Date().toDateString()?hm(t):d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}
+function say(el,t,ok){el.hidden=!t;el.textContent=t||"";el.className="msg"+(ok?" ok":"")}
+function parseEmails(t){var o=[];String(t).toLowerCase().split(/[\s,;]+/).forEach(function(x){if(x&&o.indexOf(x)<0)o.push(x)});return o}
+function title(c){if(c.group)return c.name||"Groupe";var o=c.members.filter(function(u){return u!==me.id})[0];return names[o]||"Contact"}
+function avatar(c){return '<span class="av'+(c.group?' g':'')+'" style="background:'+COLORS[hash(title(c))%COLORS.length]+'">'+esc(title(c).charAt(0).toUpperCase())+'</span>'}
+/* ---- Connexion / inscription ---- */
+function mode(s){signup=s;$("an").hidden=!s;$("an").required=s;$("ab").textContent=s?"Créer mon compte":"Se connecter";$("at").textContent=s?"Déjà un compte ? Se connecter":"Pas de compte ? Créer un compte";$("sub").textContent=s?"Crée ton compte FACTTOS en quelques secondes.":"Connecte-toi pour retrouver tes conversations.";$("ap").autocomplete=s?"new-password":"current-password";say($("am"),"")}
+$("at").onclick=function(){mode(!signup)};
+$("af").onsubmit=async function(e){
+  e.preventDefault();say($("am"),"");$("ab").disabled=true;
+  var em=$("ae").value.trim(),pw=$("ap").value,r;
+  if(signup)r=await sb.auth.signUp({email:em,password:pw,options:{data:{name:$("an").value.trim()}}});
+  else r=await sb.auth.signInWithPassword({email:em,password:pw});
+  $("ab").disabled=false;
+  if(r.error){say($("am"),r.error.message.indexOf("Invalid login")>=0?"E-mail ou mot de passe incorrect.":r.error.message);return}
+  if(signup&&!r.data.session){say($("am"),"Compte créé. Vérifie ta boîte mail pour confirmer, puis connecte-toi.",true);return}
+  if(r.data.session)start(r.data.session.user);
+};
+$("out").onclick=async function(){await sb.auth.signOut();location.reload()};
+async function start(user){
+  me=user;$("auth").hidden=true;$("app").hidden=false;
+  $("who").textContent="Connecté : "+(user.user_metadata&&user.user_metadata.name||user.email);
+  await loadConvs();renderChat();listen();
+}
+/* ---- Données ---- */
+async function loadConvs(){
+  var r=await sb.from("members").select("conversation_id, conversations(id,name,is_group,created_at,created_by)").eq("user_id",me.id);
+  var rows=(r.data||[]).filter(function(x){return x.conversations});
+  var ids=rows.map(function(x){return x.conversation_id});
+  if(!ids.length){convs=[];renderList();return}
+  var ps=(await sb.from("profiles").select("id,name").in("id",uids)).data||[];
+  ps.forEach(function(p){names[p.id]=p.name});
+  var ms=(await sb.from("messages").select("*").in("conversation_id",ids).order("created_at",{ascending:false}).limit(300)).data||[];
+  var old={};convs.forEach(function(c){old[c.id]=c.unread});
+  convs=rows.map(function(x,i){
+    var c=x.conversations;
+    return{id:c.id,name:c.name,group:c.is_group,idx:i,unread:old[c.id]||0,
+      members:all.filter(function(m){return m.conversation_id==c.id}).map(function(m){return m.user_id}),
+      last:ms.filter(function(m){return m.conversation_id==c.id})[0]||null,created:c.created_at,creator:c.created_by};
+  });
+  renderList();
+}
+function renderList(){
+  var h="";
+  convs.slice().sort(function(a,b){return new Date(b.last?b.last.created_at:b.created)-new Date(a.last?a.last.created_at:a.created)}).forEach(function(c){
+    var l=c.last,p=l?((l.sender_id==me.id?"Vous : ":(c.group?(names[l.sender_id]||"?")+" : ":""))+l.body):"Aucun message";
+    h+='<button class="row'+(cur===c.id?' on':'')+'" data-id="'+c.id+'">'+avatar(c)+'<span class="meta"><span class="name"><span>'+esc(title(c))+'</span><small>'+(l?day(l.created_at):'')+'</small></span><span class="prev"><span>'+esc(p)+'</span>'+(c.unread?'<span class="badge">'+c.unread+'</span>':'')+'</span></span></button>';
+  });
+  $("list").innerHTML=h||'<div class="empty">Aucune conversation.<br>Appuie sur ＋ pour écrire à quelqu\'un.</div>';
+}
+function renderChat(){
+  var c=convs.filter(function(x){return x.id===cur})[0];
+  if(!c){$("chat").innerHTML='<div class="empty">Choisis une conversation<br>ou crée-en une avec ＋</div>';return}
+  var prev=$("txt"),keep=(prev&&renderedFor===c.id)?prev.value:"",had=prev&&document.activeElement===prev;
+  var h='<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div><div class="t">'+esc(title(c))+'</div><div class="s">'+(c.group?c.members.map(function(u){return u==me.id?"Toi":(names[u]||"?")}).join(", "):'Conversation privée')+'</div></div>'+(c.group&&c.creator===me.id?'<button class="icon-btn" id="addm" style="margin-left:auto" aria-label="Ajouter des membres">👥</button>':'')+'</div><div class="msgs" id="msgs">';
+  var list=msgs[c.id]||[];
+  if(!list.length)h+='<div class="empty">Dis bonjour 👋</div>';
+  list.forEach(function(m){
+    var mine=m.sender_id==me.id;
+    h+='<div class="b'+(mine?' me':'')+'" data-id="'+m.id+'">'+(c.group&&!mine?'<span class="who">'+esc(names[m.sender_id]||"?")+'</span>':'')+esc(m.body)+'<time>'+(m.edited_at?'modifié · ':'')+hm(m.created_at)+'</time></div>';
+  });
+  h+='</div><form class="bar" id="bar"><input type="text" id="txt" placeholder="Écrire un message" autocomplete="off" aria-label="Message"><button class="send" type="submit">Envoyer</button></form>';
+  $("chat").innerHTML=h;renderedFor=c.id;$("txt").value=keep;if(had)$("txt").focus();
+  var box=$("msgs");box.scrollTop=box.scrollHeight;
+  box.onclick=function(e){var b=e.target.closest(".b.me");if(b)openEdit(b.dataset.id)};
+  if($("addm"))$("addm").onclick=function(){$("ge").value="";say($("gm"),"");$("gd").showModal()};
+  $("back").onclick=function(){cur=null;$("app").classList.remove("open");renderList();renderChat()};
+  $("bar").onsubmit=async function(e){
+    e.preventDefault();var v=$("txt").value.trim();if(!v)return;$("txt").value="";
+    var r=await sb.from("messages").insert({conversation_id:c.id,body:v}).select().single();
+    if(r.error){alert("Message non envoyé : "+r.error.message);return}
+    add(r.data);
+  };
+}
+function add(m){
+  var list=msgs[m.conversation_id]=msgs[m.conversation_id]||[];
+  if(list.some(function(x){return x.id==m.id}))return;
+  list.push(m);
+  var c=convs.filter(function(x){return x.id===m.conversation_id})[0];
+  if(c){c.last=m;if(cur!==c.id&&m.sender_id!==me.id)c.unread++}
+  renderList();if(cur===m.conversation_id)renderChat();
+}
+async function open(id){
+  cur=id;var c=convs.filter(function(x){return x.id===id})[0];if(c)c.unread=0;
+  $("app").classList.add("open");renderList();
+  var r=await sb.from("messages").select("*").eq("conversation_id",id).order("created_at").limit(200);
+  msgs[id]=r.data||[];renderChat();
+}
+var editing=null,renderedFor=null;
+function findMsg(id){for(var k in msgs){var l=msgs[k];for(var i=0;i<l.length;i++)if(l[i].id==id)return l[i]}return null}
+function openEdit(id){var m=findMsg(id);if(!m)return;editing=m;$("etx").value=m.body;say($("em"),"");$("md").showModal()}
+function applyUpdate(n){
+  var m=findMsg(n.id);if(!m)return;
+  m.body=n.body;m.edited_at=n.edited_at;
+  renderList();renderChat();
+}
+function applyDelete(id){
+  var hit=false;
+  for(var k in msgs){var b=msgs[k].length;msgs[k]=msgs[k].filter(function(x){return x.id!=id});if(msgs[k].length!==b)hit=true}
+  if(hit)loadConvs().then(renderChat);
+}
+$("mf").onsubmit=async function(e){
+  e.preventDefault();if(!editing)return;
+  var v=$("etx").value.trim();
+  if(!v){say($("em"),"Le message ne peut pas être vide. Utilise « Supprimer » pour le retirer.");return}
+  if(v===editing.body){$("md").close();return}
+  var r=await sb.from("messages").update({body:v,edited_at:new Date().toISOString()}).eq("id",editing.id).select().single();
+  if(r.error){say($("em"),r.error.message);return}
+  $("md").close();applyUpdate(r.data);
+};
+$("edel").onclick=async function(){
+  if(!editing||!confirm("Supprimer ce message pour tout le monde ?"))return;
+  var r=await sb.from("messages").delete().eq("id",editing.id).select();
+  if(r.error||!r.data||!r.data.length){say($("em"),r.error?r.error.message:"Suppression impossible.");return}
+  $("md").close();applyDelete(editing.id);
+};
+$("ecan").onclick=function(){$("md").close()};
+function listen(){
+  if(chan)return;
+  chan=sb.channel("facttos-messages").on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},async function(p){
+    var m=p.new;
+    if(!convs.some(function(c){return c.id===m.conversation_id}))await loadConvs();
+    if(!names[m.sender_id]){var q=await sb.from("profiles").select("id,name").eq("id",m.sender_id).single();if(q.data)names[q.data.id]=q.data.name}
+    add(m);
+  }).on("postgres_changes",{event:"UPDATE",schema:"public",table:"messages"},function(p){applyUpdate(p.new)
+  }).on("postgres_changes",{event:"DELETE",schema:"public",table:"messages"},function(p){applyDelete(p.old.id)}).subscribe();
+}
+$("list").onclick=function(e){var b=e.target.closest(".row");if(b)open(b.dataset.id)};
+/* ---- Nouvelle conversation ---- */
+$("new").onclick=function(){$("ne").value="";$("ng").checked=false;$("ngn").value="";$("ngn").hidden=true;say($("nm"),"");$("dlg").showModal()};
+$("cancel").onclick=function(){$("dlg").close()};
+$("ng").onchange=function(){$("ngn").hidden=!this.checked};
+$("f").onsubmit=async function(e){
+  e.preventDefault();say($("nm"),"");
+  var emails=parseEmails($("ne").value);
+  if(!emails.length){say($("nm"),"Entre au moins une adresse e-mail.");return}
+  var group=$("ng").checked;
+  if(!group&&emails.length>1){$("ng").checked=true;$("ngn").hidden=false;say($("nm"),"Plusieurs personnes : donne un nom au groupe, puis appuie sur Créer.");return}
+  var ps=(await sb.from("profiles").select("id,name,email").in("email",emails)).data||[];
+  var found=ps.map(function(p){return p.email});
+  var miss=emails.filter(function(x){return found.indexOf(x)<0});
+  if(miss.length){say($("nm"),"Aucun compte FACTTOS pour : "+miss.join(", ")+". Invite cette personne à s'inscrire.");return}
+  if(ps.some(function(p){return p.id===me.id})){say($("nm"),"Tu ne peux pas t'ajouter toi-même.");return}
+  ps.forEach(function(p){names[p.id]=p.name});
+  if(!group){
+    var ex=convs.filter(function(c){return !c.group&&c.members.indexOf(ps[0].id)>=0})[0];
+    if(ex){$("dlg").close();open(ex.id);return}
+  }
+  var gn=$("ngn").value.trim();
+  if(group&&!gn){say($("nm"),"Donne un nom au groupe.");return}
+  var c=await sb.from("conversations").insert({name:group?gn:null,is_group:group}).select().single();
+  if(c.error){say($("nm"),c.error.message);return}
+  var mem=[{conversation_id:c.data.id,user_id:me.id}].concat(ps.map(function(p){return{conversation_id:c.data.id,user_id:p.id}}));
+  var r=await sb.from("members").insert(mem);
+  if(r.error){say($("nm"),r.error.message);return}
+  $("dlg").close();await loadConvs();open(c.data.id);
+};
+$("gcan").onclick=function(){$("gd").close()};
+$("gf").onsubmit=async function(e){
+  e.preventDefault();say($("gm"),"");
+  var c=convs.filter(function(x){return x.id===cur})[0];
+  var emails=parseEmails($("ge").value);
+  if(!c||!emails.length){say($("gm"),"Entre au moins une adresse e-mail.");return}
+  var ps=(await sb.from("profiles").select("id,name,email").in("email",emails)).data||[];
+  var miss=emails.filter(function(x){return ps.every(function(p){return p.email!==x})});
+  if(miss.length){say($("gm"),"Aucun compte FACTTOS pour : "+miss.join(", ")+". Invite ces personnes à s'inscrire.");return}
+  var fresh=ps.filter(function(p){return c.members.indexOf(p.id)<0});
+  if(!fresh.length){say($("gm"),"Ces personnes sont déjà dans le groupe.");return}
+  fresh.forEach(function(p){names[p.id]=p.name});
+  var r=await sb.from("members").insert(fresh.map(function(p){return{conversation_id:c.id,user_id:p.id}}));
+  if(r.error){say($("gm"),r.error.message);return}
+  $("gd").close();await loadConvs();renderChat();
+};
+
+if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+
+/* ---- Démarrage ---- */
+sb.auth.getSession().then(function(r){
+  if(r.data.session)start(r.data.session.user);else $("auth").hidden=false;
+});
+})();
+</script>
+</body>
+</html>
+                       
