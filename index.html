@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FACTTOS">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="icon" type="image/png" href="icons/favicon-48.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="favicon-48.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
@@ -109,7 +109,7 @@ dialog h2{margin:0 0 12px;font-size:20px}
 <dialog id="dlg">
   <form method="dialog" id="f">
     <h2>Nouvelle conversation</h2>
-    <input class="field" id="ne" placeholder="E-mail du contact (plusieurs : séparés par une virgule)" required autocomplete="off">
+    <textarea class="field" id="ne" rows="2" placeholder="E-mail du contact. Pour un groupe : plusieurs e-mails séparés par une virgule, un espace ou un retour à la ligne" required autocomplete="off" style="resize:vertical"></textarea>
     <div class="chk"><input type="checkbox" id="ng"><label for="ng">C'est un groupe</label></div>
     <input class="field" id="ngn" placeholder="Nom du groupe" maxlength="30" hidden>
     <p class="msg" id="nm" hidden></p>
@@ -126,6 +126,15 @@ dialog h2{margin:0 0 12px;font-size:20px}
   </form>
 </dialog>
 
+<dialog id="gd">
+  <form id="gf">
+    <h2>Ajouter au groupe</h2>
+    <textarea class="field" id="ge" rows="2" placeholder="E-mails des personnes à ajouter (séparés par une virgule, un espace ou un retour à la ligne)" required autocomplete="off" style="resize:vertical"></textarea>
+    <p class="msg" id="gm" hidden></p>
+    <div class="act"><button type="button" id="gcan" style="padding:10px 14px">Annuler</button><button class="send" type="submit">Ajouter</button></div>
+  </form>
+</dialog>
+
 <script>
 (function(){
 var SB_URL="https://eduqrmfgbrssihoglunw.supabase.co";
@@ -139,6 +148,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return
 function hm(t){return new Date(t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
 function day(t){var d=new Date(t);return d.toDateString()==new Date().toDateString()?hm(t):d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}
 function say(el,t,ok){el.hidden=!t;el.textContent=t||"";el.className="msg"+(ok?" ok":"")}
+function parseEmails(t){var o=[];String(t).toLowerCase().split(/[\s,;]+/).forEach(function(x){if(x&&o.indexOf(x)<0)o.push(x)});return o}
 function title(c){if(c.group)return c.name||"Groupe";var o=c.members.filter(function(u){return u!==me.id})[0];return names[o]||"Contact"}
 function avatar(c){return '<span class="av'+(c.group?' g':'')+'" style="background:'+COLORS[hash(title(c))%COLORS.length]+'">'+esc(title(c).charAt(0).toUpperCase())+'</span>'}
 
@@ -165,7 +175,7 @@ async function start(user){
 
 /* ---- Données ---- */
 async function loadConvs(){
-  var r=await sb.from("members").select("conversation_id, conversations(id,name,is_group,created_at)").eq("user_id",me.id);
+  var r=await sb.from("members").select("conversation_id, conversations(id,name,is_group,created_at,created_by)").eq("user_id",me.id);
   var rows=(r.data||[]).filter(function(x){return x.conversations});
   var ids=rows.map(function(x){return x.conversation_id});
   if(!ids.length){convs=[];renderList();return}
@@ -179,7 +189,7 @@ async function loadConvs(){
     var c=x.conversations;
     return{id:c.id,name:c.name,group:c.is_group,idx:i,unread:old[c.id]||0,
       members:all.filter(function(m){return m.conversation_id==c.id}).map(function(m){return m.user_id}),
-      last:ms.filter(function(m){return m.conversation_id==c.id})[0]||null,created:c.created_at};
+      last:ms.filter(function(m){return m.conversation_id==c.id})[0]||null,created:c.created_at,creator:c.created_by};
   });
   renderList();
 }
@@ -195,7 +205,7 @@ function renderChat(){
   var c=convs.filter(function(x){return x.id===cur})[0];
   if(!c){$("chat").innerHTML='<div class="empty">Choisis une conversation<br>ou crée-en une avec ＋</div>';return}
   var prev=$("txt"),keep=(prev&&renderedFor===c.id)?prev.value:"",had=prev&&document.activeElement===prev;
-  var h='<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div><div class="t">'+esc(title(c))+'</div><div class="s">'+(c.group?c.members.length+' participants':'Conversation privée')+'</div></div></div><div class="msgs" id="msgs">';
+  var h='<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div><div class="t">'+esc(title(c))+'</div><div class="s">'+(c.group?c.members.map(function(u){return u==me.id?"Toi":(names[u]||"?")}).join(", "):'Conversation privée')+'</div></div>'+(c.group&&c.creator===me.id?'<button class="icon-btn" id="addm" style="margin-left:auto" aria-label="Ajouter des membres">👥</button>':'')+'</div><div class="msgs" id="msgs">';
   var list=msgs[c.id]||[];
   if(!list.length)h+='<div class="empty">Dis bonjour 👋</div>';
   list.forEach(function(m){
@@ -206,6 +216,7 @@ function renderChat(){
   $("chat").innerHTML=h;renderedFor=c.id;$("txt").value=keep;if(had)$("txt").focus();
   var box=$("msgs");box.scrollTop=box.scrollHeight;
   box.onclick=function(e){var b=e.target.closest(".b.me");if(b)openEdit(b.dataset.id)};
+  if($("addm"))$("addm").onclick=function(){$("ge").value="";say($("gm"),"");$("gd").showModal()};
   $("back").onclick=function(){cur=null;$("app").classList.remove("open");renderList();renderChat()};
   $("bar").onsubmit=async function(e){
     e.preventDefault();var v=$("txt").value.trim();if(!v)return;$("txt").value="";
@@ -275,9 +286,10 @@ $("cancel").onclick=function(){$("dlg").close()};
 $("ng").onchange=function(){$("ngn").hidden=!this.checked};
 $("f").onsubmit=async function(e){
   e.preventDefault();say($("nm"),"");
-  var emails=$("ne").value.split(",").map(function(s){return s.trim().toLowerCase()}).filter(Boolean);
+  var emails=parseEmails($("ne").value);
+  if(!emails.length){say($("nm"),"Entre au moins une adresse e-mail.");return}
   var group=$("ng").checked;
-  if(!group&&emails.length>1){say($("nm"),"Coche « groupe » pour écrire à plusieurs personnes.");return}
+  if(!group&&emails.length>1){$("ng").checked=true;$("ngn").hidden=false;say($("nm"),"Plusieurs personnes : donne un nom au groupe, puis appuie sur Créer.");return}
   var ps=(await sb.from("profiles").select("id,name,email").in("email",emails)).data||[];
   var found=ps.map(function(p){return p.email});
   var miss=emails.filter(function(x){return found.indexOf(x)<0});
@@ -296,6 +308,23 @@ $("f").onsubmit=async function(e){
   var r=await sb.from("members").insert(mem);
   if(r.error){say($("nm"),r.error.message);return}
   $("dlg").close();await loadConvs();open(c.data.id);
+};
+
+$("gcan").onclick=function(){$("gd").close()};
+$("gf").onsubmit=async function(e){
+  e.preventDefault();say($("gm"),"");
+  var c=convs.filter(function(x){return x.id===cur})[0];
+  var emails=parseEmails($("ge").value);
+  if(!c||!emails.length){say($("gm"),"Entre au moins une adresse e-mail.");return}
+  var ps=(await sb.from("profiles").select("id,name,email").in("email",emails)).data||[];
+  var miss=emails.filter(function(x){return ps.every(function(p){return p.email!==x})});
+  if(miss.length){say($("gm"),"Aucun compte FACTTOS pour : "+miss.join(", ")+". Invite ces personnes à s'inscrire.");return}
+  var fresh=ps.filter(function(p){return c.members.indexOf(p.id)<0});
+  if(!fresh.length){say($("gm"),"Ces personnes sont déjà dans le groupe.");return}
+  fresh.forEach(function(p){names[p.id]=p.name});
+  var r=await sb.from("members").insert(fresh.map(function(p){return{conversation_id:c.id,user_id:p.id}}));
+  if(r.error){say($("gm"),r.error.message);return}
+  $("gd").close();await loadConvs();renderChat();
 };
 
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
