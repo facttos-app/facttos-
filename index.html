@@ -172,6 +172,7 @@ dialog.sheet{margin:auto auto 0;width:min(520px,100%);max-width:100%;border-radi
 .b.me .tk{opacity:.8}
 .b.me .tk.rd{color:#7DF9FF;opacity:1}
 .top .s.ty{color:var(--me);font-weight:600}
+.offb{background:#6B7690;color:#fff;font-size:13px;padding:6px 12px;text-align:center}
 </style>
 </head>
 <body>
@@ -206,6 +207,7 @@ dialog.sheet{margin:auto auto 0;width:min(520px,100%);max-width:100%;border-radi
 <div class="app" id="app" hidden>
   <aside class="side">
     <div id="ann" hidden style="background:#FF4D8D;color:#fff;padding:8px 38px 8px 12px;font-size:14px;position:relative"><span id="annt"></span><button id="annx" aria-label="Fermer l'annonce" style="position:absolute;right:6px;top:4px;color:#fff;font-size:18px;padding:4px 8px">✕</button></div>
+    <div id="offb" class="offb" hidden>📴 Hors connexion : tu consultes les messages enregistrés sur ce téléphone.</div>
     <div class="brand"><div class="logo" aria-label="FACTTOS">FAC<i>TT</i>OS</div>
       <div class="tools"><button class="icon-btn" id="menu" aria-label="Menu">⋮</button><button id="out" hidden aria-label="Se déconnecter"></button></div></div>
     <div class="me-line" id="who"></div>
@@ -331,7 +333,7 @@ dialog.sheet{margin:auto auto 0;width:min(520px,100%);max-width:100%;border-radi
 (function(){
 var SB_URL="https://eduqrmfgbrssihoglunw.supabase.co";
 var SB_KEY="sb_publishable_oQ0OYehrx485wazISydORQ__BGD3iXV";
-var sb=supabase.createClient(SB_URL,SB_KEY);
+var sb=supabase.createClient(SB_URL,SB_KEY,{global:{fetch:function(u,o){return tfetch(u,o)}}});
 var COLORS=["#7B2FF7","#E8387A","#0EA5A4","#F59E0B","#2563EB","#16A34A","#EA580C","#DB2777"];
 function hash(s){var h=0;s=String(s);for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h}
 var me=null,convs=[],cur=null,msgs={},names={},signup=false,chan=null;
@@ -388,12 +390,21 @@ $("af").onsubmit=async function(e){
   if(signup&&!r.data.session){say($("am"),"Compte créé. Vérifie ta boîte mail pour confirmer, puis connecte-toi.",true);return}
   if(r.data.session)start(r.data.session.user);
 };
-$("out").onclick=async function(){await sb.auth.signOut();location.reload()};
+$("out").onclick=async function(){try{await sb.auth.signOut({scope:"local"})}catch(e){}await kvClear();location.reload()};
 
-async function start(user){
+async function start(user,off){
   me=user;$("auth").hidden=true;$("app").hidden=false;
   $("who").textContent="Connecté : "+(user.user_metadata&&user.user_metadata.name||user.email);
-  try{await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();renderChat();listen()}catch(err){showErr(err)}
+  var cu0=await kvGet("user");if(!off&&cu0&&cu0.id!==user.id)await kvClear();
+  await loadOutbox();
+  if(off){offlineMode=true;await loadFromCache();renderChat();updateOfflineUI();return}
+  try{
+    await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();renderChat();listen();
+    flushOutbox();prefetchMsgs();
+  }catch(err){
+    if(isNetErr(err)){offlineMode=true;await loadFromCache();renderChat();updateOfflineUI()}
+    else showErr(err);
+  }
 }
 function showErr(err){
   var msg=String(err&&err.message||err);
@@ -409,15 +420,17 @@ async function loadConvs(){
   if(r.error)throw r.error;
   var rows=(r.data||[]).filter(function(x){return x.conversations});
   var ids=rows.map(function(x){return x.conversation_id});
-  if(!ids.length){convs=[];renderList();return}
+  if(!ids.length){convs=[];renderList();saveCache();return}
   var ar=await sb.from("members").select("conversation_id,user_id,last_read_at").in("conversation_id",ids);
+  chk(ar);
   if(ar.error)ar=await sb.from("members").select("conversation_id,user_id").in("conversation_id",ids);
+  chk(ar);
   var all=ar.data||[];
   var uids=[];all.forEach(function(m){if(uids.indexOf(m.user_id)<0)uids.push(m.user_id)});
-  var ps=(await sb.from("profiles").select("id,name").in("id",uids)).data||[];
+  var ps=chk(await sb.from("profiles").select("id,name").in("id",uids)).data||[];
   ps.forEach(function(p){names[p.id]=p.name});
   await loadAvatars(uids);
-  var ms=(await sb.from("messages").select("*").in("conversation_id",ids).order("created_at",{ascending:false}).limit(300)).data||[];
+  var ms=chk(await sb.from("messages").select("*").in("conversation_id",ids).order("created_at",{ascending:false}).limit(300)).data||[];
   var old={};convs.forEach(function(c){old[c.id]=c.unread});
   convs=rows.map(function(x,i){
     var c=x.conversations;
@@ -426,7 +439,7 @@ async function loadConvs(){
       reads:(function(){var o={};all.forEach(function(m){if(m.conversation_id==c.id&&m.last_read_at)o[m.user_id]=m.last_read_at});return o})(),
       last:ms.filter(function(m){return m.conversation_id==c.id})[0]||null,created:c.created_at,creator:c.created_by};
   });
-  renderList();
+  renderList();saveCache();
 }
 var filt="all",q="",lpT=null,lpFired=false;
 function renderChips(un){
@@ -518,7 +531,7 @@ function renderChat(){
   var om=$("msgs"),atBottom=!om||renderedFor!==c.id||forceBottom||om.scrollHeight-om.scrollTop-om.clientHeight<80,oldTop=om?om.scrollTop:0;forceBottom=false;
   var other=c.group?null:c.members.filter(function(u){return u!==me.id})[0],iBlocked=!!other&&blocked.indexOf(other)>=0;
   var sub=c.group?c.members.map(function(u){return u==me.id?"Toi":(names[u]||"?")}).join(", "):"Conversation privée";
-  var h='<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div class="tt"><div class="t">'+esc(title(c))+'</div><div class="s" id="csub" data-d="'+esc(sub)+'">'+esc(sub)+'</div></div><button class="icon-btn" id="more" aria-label="Plus d\'options">⋮</button></div><div class="msgs" id="msgs">';
+  var h=(offlineMode?'<div class="offb">📴 Hors connexion : tes messages partiront dès que le réseau revient.</div>':'')+'<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div class="tt"><div class="t">'+esc(title(c))+'</div><div class="s" id="csub" data-d="'+esc(sub)+'">'+esc(sub)+'</div></div><button class="icon-btn" id="more" aria-label="Plus d\'options">⋮</button></div><div class="msgs" id="msgs">';
   var list=msgs[c.id]||[],lastDay="",lastSender=null;
   if(!list.length)h+='<div class="empty">Dis bonjour 👋</div>';
   list.forEach(function(m){
@@ -578,10 +591,14 @@ function renderChat(){
   if($("bar"))$("bar").onsubmit=async function(e){
     e.preventDefault();var v=$("txt").value.trim();if(!v)return;
     var row={conversation_id:c.id,body:v};
-    if(replyTo&&replyTo.conversation_id===c.id)row.reply_to=replyTo.id;
+    if(replyTo&&replyTo.conversation_id===c.id&&String(replyTo.id).indexOf("tmp-")!==0)row.reply_to=replyTo.id;
     $("txt").value="";
+    if(offlineMode){queueMsg(c,v,row.reply_to);replyTo=null;return}
     var r=await sb.from("messages").insert(row).select().single();
-    if(r.error){$("txt").value=v;alert("Message non envoyé : "+r.error.message);return}
+    if(r.error){
+      if(isNetErr(r.error)){enterOffline();queueMsg(c,v,row.reply_to);replyTo=null;return}
+      $("txt").value=v;alert("Message non envoyé : "+r.error.message);return
+    }
     replyTo=null;forceBottom=true;add(r.data);
   };
   if($("txt"))$("txt").oninput=sendTyping;
@@ -595,9 +612,9 @@ function isRead(c,m){
   var rd=c.reads||{},t=new Date(m.created_at).getTime();
   return o.every(function(u){return rd[u]&&new Date(rd[u]).getTime()>=t});
 }
-function tickHtml(c,m){var r=isRead(c,m);return ' <span class="tk'+(r?' rd':'')+'" aria-label="'+(r?'Lu':'Envoyé')+'">'+(r?'✓✓':'✓')+'</span>'}
+function tickHtml(c,m){if(m.pending)return ' <span class="tk" aria-label="En attente">🕓</span>';var r=isRead(c,m);return ' <span class="tk'+(r?' rd':'')+'" aria-label="'+(r?'Lu':'Envoyé')+'">'+(r?'✓✓':'✓')+'</span>'}
 function markRead(cid){
-  if(!readReceipts||document.hidden||cid!==cur)return;
+  if(offlineMode||!readReceipts||document.hidden||cid!==cur)return;
   sb.rpc("mark_read",{cid:cid}).then(function(){},function(){});
 }
 function applyRead(n){
@@ -661,6 +678,7 @@ $("ma").onclick=function(e){
 };
 function copyText(t){try{navigator.clipboard.writeText(t)}catch(e){}}
 function openActions(m){
+  if(m.pending){sheet([{t:"✖ Annuler l'envoi",d:true,f:function(){cancelPending(m)}}]);return}
   var mine=m.sender_id===me.id,it=[{t:"↩ Répondre",f:function(){setReply(m)}}];
   if(m.image_path)it.push({t:"🖼 Voir la photo",f:function(){openViewer(m)}});
   else it.push({t:"⧉ Copier",f:function(){copyText(m.body)}});
@@ -682,7 +700,7 @@ async function delOwn(m){
 function add(m){
   var list=msgs[m.conversation_id]=msgs[m.conversation_id]||[];
   if(list.some(function(x){return x.id==m.id}))return;
-  list.push(m);
+  list.push(m);cacheMsgs(m.conversation_id);
   var c=convs.filter(function(x){return x.id===m.conversation_id})[0];
   if(c){c.last=m;if(cur!==c.id&&m.sender_id!==me.id&&blocked.indexOf(m.sender_id)<0)c.unread++}
   renderList();if(cur===m.conversation_id){renderChat();if(m.sender_id!==me.id)markRead(m.conversation_id)}
@@ -690,8 +708,14 @@ function add(m){
 async function open(id){
   cur=id;replyTo=null;joinTyping(id);var c=convs.filter(function(x){return x.id===id})[0];if(c)c.unread=0;
   $("app").classList.add("open");renderList();
-  var r=await sb.from("messages").select("*").eq("conversation_id",id).order("created_at").limit(200);
-  msgs[id]=r.data||[];forceBottom=true;renderChat();markRead(id);
+  var data=null;
+  if(!offlineMode){
+    var r=await sb.from("messages").select("*").eq("conversation_id",id).order("created_at").limit(200);
+    if(r.error&&isNetErr(r.error))enterOffline();else data=r.data||[];
+  }
+  if(!data)data=((await kvGet("msgs:"+id))||[]).concat(outbox.filter(function(x){return x.conversation_id===id}));
+  else cacheMsgs(id);
+  msgs[id]=data;forceBottom=true;renderChat();markRead(id);
 }
 var editing=null,renderedFor=null;
 function findMsg(id){for(var k in msgs){var l=msgs[k];for(var i=0;i<l.length;i++)if(l[i].id==id)return l[i]}return null}
@@ -796,8 +820,171 @@ $("adg").onclick=async function(){
   var r=await sb.rpc("delete_my_account");
   if(r.error){say($("adm"),r.error.message);return}
   try{await sb.auth.signOut({scope:"local"})}catch(x){}
-  location.reload();
+  await kvClear();location.reload();
 };
+
+var offlineMode=false,outbox=[],flushing=false,goingOnline=false,cmT={},photoObj={};
+/* ---- base locale (IndexedDB) ---- */
+var dbp=null;
+function idb(){
+  if(dbp)return dbp;
+  dbp=new Promise(function(res,rej){
+    var q=indexedDB.open("facttos",1);
+    q.onupgradeneeded=function(){q.result.createObjectStore("kv")};
+    q.onsuccess=function(){res(q.result)};
+    q.onerror=function(){rej(q.error)};
+  });
+  return dbp;
+}
+function kvGet(k){return idb().then(function(db){return new Promise(function(res){var r=db.transaction("kv").objectStore("kv").get(k);r.onsuccess=function(){res(r.result)};r.onerror=function(){res(undefined)}})}).catch(function(){return undefined})}
+function kvSet(k,v){return idb().then(function(db){return new Promise(function(res){var t=db.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=function(){res(true)};t.onerror=function(){res(false)}})}).catch(function(){return false})}
+function kvDel(k){return idb().then(function(db){return new Promise(function(res){var t=db.transaction("kv","readwrite");t.objectStore("kv").delete(k);t.oncomplete=function(){res(true)};t.onerror=function(){res(false)}})}).catch(function(){return false})}
+function kvClear(){return idb().then(function(db){return new Promise(function(res){var t=db.transaction("kv","readwrite");t.objectStore("kv").clear();t.oncomplete=function(){res(true)};t.onerror=function(){res(false)}})}).catch(function(){return false})}
+/* ---- réseau ---- */
+function tfetch(u,o){
+  o=o||{};
+  if(o.method==="POST"&&String(u).indexOf("/storage/v1/object/")>=0)return fetch(u,o);
+  var c=new AbortController(),t=setTimeout(function(){c.abort()},10000);
+  if(o.signal)o.signal.addEventListener("abort",function(){c.abort()});
+  return fetch(u,Object.assign({},o,{signal:c.signal})).finally(function(){clearTimeout(t)});
+}
+function isNetErr(e){
+  var m=String(e&&e.message||e||"");
+  return /failed to fetch|networkerror|network request failed|load failed|fetch failed|aborted|timeout|timed out/i.test(m)||!!(e&&e.status===0);
+}
+function chk(r){if(r&&r.error&&isNetErr(r.error))throw r.error;return r}
+function updateOfflineUI(){var b=$("offb");if(b)b.hidden=!offlineMode}
+function enterOffline(){if(offlineMode)return;offlineMode=true;updateOfflineUI();renderChat()}
+/* ---- copie locale ---- */
+function saveCache(){
+  kvSet("user",{id:me.id,email:me.email,user_metadata:me.user_metadata||{}});
+  kvSet("convs",convs);kvSet("names",names);kvSet("avatarOf",avatarOf);kvSet("blocked",blocked);kvSet("friends",friends);
+}
+async function loadFromCache(){
+  convs=(await kvGet("convs"))||[];
+  var n=await kvGet("names");if(n)Object.assign(names,n);
+  var a=await kvGet("avatarOf");if(a)Object.assign(avatarOf,a);
+  blocked=(await kvGet("blocked"))||[];
+  friends=(await kvGet("friends"))||[];
+  renderList();updateOfflineUI();
+}
+function cacheMsgs(cid){
+  clearTimeout(cmT[cid]);
+  cmT[cid]=setTimeout(function(){kvSet("msgs:"+cid,(msgs[cid]||[]).filter(function(m){return !m.pending}).slice(-200))},800);
+}
+async function prefetchMsgs(){
+  var last=await kvGet("prefetchAt");
+  if(last&&Date.now()-last<30*60*1000)return;
+  var top=convs.slice().sort(function(a,b){return new Date(b.last?b.last.created_at:b.created)-new Date(a.last?a.last.created_at:a.created)}).slice(0,15);
+  for(var i=0;i<top.length&&!offlineMode;i++){
+    var c=top[i];
+    if(msgs[c.id]){cacheMsgs(c.id);continue}
+    var r=await sb.from("messages").select("*").eq("conversation_id",c.id).order("created_at",{ascending:false}).limit(100);
+    if(r.error){if(isNetErr(r.error))return;continue}
+    await kvSet("msgs:"+c.id,(r.data||[]).reverse());
+  }
+  kvSet("prefetchAt",Date.now());
+}
+/* ---- messages en attente (hors connexion) ---- */
+async function loadOutbox(){outbox=(await kvGet("outbox"))||[]}
+function saveOutbox(){kvSet("outbox",outbox)}
+function queueMsg(c,body,replyId){
+  var m={id:"tmp-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),conversation_id:c.id,sender_id:me.id,body:body,reply_to:replyId||null,created_at:new Date().toISOString(),pending:true};
+  outbox.push(m);saveOutbox();
+  var list=msgs[c.id]=msgs[c.id]||[];list.push(m);c.last=m;
+  renderList();forceBottom=true;renderChat();cacheMsgs(c.id);
+}
+function cancelPending(m){
+  outbox=outbox.filter(function(x){return x.id!==m.id});saveOutbox();
+  msgs[m.conversation_id]=(msgs[m.conversation_id]||[]).filter(function(x){return x.id!==m.id});
+  var c=convs.filter(function(x){return x.id===m.conversation_id})[0];
+  if(c&&c.last&&c.last.id===m.id)c.last=(msgs[c.id]||[]).slice(-1)[0]||null;
+  renderList();renderChat();
+}
+async function flushOutbox(){
+  if(flushing||offlineMode||!outbox.length)return;
+  flushing=true;
+  try{
+    while(outbox.length){
+      var m=outbox[0],row={conversation_id:m.conversation_id,body:m.body};
+      if(m.reply_to&&String(m.reply_to).indexOf("tmp-")!==0)row.reply_to=m.reply_to;
+      var r=await sb.from("messages").insert(row).select().single();
+      if(r.error){
+        if(isNetErr(r.error)){enterOffline();break}
+        alert("Message non envoyé : "+r.error.message);
+      }else{
+        msgs[m.conversation_id]=(msgs[m.conversation_id]||[]).filter(function(x){return x.id!==m.id});
+        add(r.data);
+      }
+      outbox.shift();saveOutbox();
+    }
+  }finally{flushing=false}
+}
+/* ---- retour de la connexion ---- */
+async function reloadCurrent(){
+  if(!cur)return;
+  var r=await sb.from("messages").select("*").eq("conversation_id",cur).order("created_at").limit(200);
+  if(r.error)return;
+  msgs[cur]=(r.data||[]).concat(outbox.filter(function(x){return x.conversation_id===cur}));
+  cacheMsgs(cur);
+}
+async function goOnline(){
+  if(!offlineMode||goingOnline||!me)return;
+  goingOnline=true;
+  try{
+    var s=await sb.auth.getSession();
+    if(!s.data.session){
+      if(s.error&&isNetErr(s.error))return;
+      await kvClear();location.reload();return;
+    }
+    me=s.data.session.user;
+    var t=await sb.from("settings").select("id").eq("id",1).single();
+    if(t.error&&isNetErr(t.error))return;
+    offlineMode=false;
+    await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();
+    await flushOutbox();await reloadCurrent();
+    if(chan){try{sb.removeChannel(chan)}catch(e){}chan=null}
+    listen();updateOfflineUI();renderList();renderChat();
+  }catch(e){offlineMode=true}
+  finally{goingOnline=false}
+}
+window.addEventListener("online",function(){goOnline()});
+window.addEventListener("offline",function(){if(me)enterOffline()});
+document.addEventListener("visibilitychange",function(){if(!document.hidden)goOnline()});
+setInterval(function(){if(offlineMode&&!document.hidden)goOnline()},15000);
+/* ---- photos : copie locale ---- */
+function photoHtml(m){
+  if(!m.image_path)return"";
+  var u=photoObj[m.image_path];
+  return '<img class="ph" data-path="'+esc(m.image_path)+'" '+(u?'src="'+u+'" ':'')+'alt="Photo">';
+}
+async function putPhoto(path,blob){
+  await kvSet("photo:"+path,{blob:blob,ts:Date.now()});
+  var idx=(await kvGet("photoIndex"))||[];
+  idx=idx.filter(function(x){return x.k!==path});idx.push({k:path,ts:Date.now()});
+  while(idx.length>150){var o=idx.shift();await kvDel("photo:"+o.k)}
+  await kvSet("photoIndex",idx);
+}
+async function getPhoto(path,store){
+  if(photoObj[path])return photoObj[path];
+  var c=await kvGet("photo:"+path);
+  if(c&&c.blob){photoObj[path]=URL.createObjectURL(c.blob);return photoObj[path]}
+  if(offlineMode)return"";
+  try{
+    await signPhotos([path]);
+    var u=photoSrc(path);if(!u)return"";
+    var r=await tfetch(u);
+    if(!r.ok){photoObj[path]=u;return u}
+    var b=await r.blob();
+    if(store!==false)putPhoto(path,b);
+    photoObj[path]=URL.createObjectURL(b);
+    return photoObj[path];
+  }catch(e){return photoSrc(path)||""}
+}
+async function hydrate(root,store){
+  var imgs=[].slice.call(root.querySelectorAll("img[data-path]")).filter(function(i){return !i.getAttribute("src")});
+  await Promise.all(imgs.map(async function(i){var u=await getPhoto(i.dataset.path,store);if(u)i.src=u}));
+}
 
 var friends=[],searchable=true,fTimer=null;
 function pickedIds(box){return [].slice.call(box.querySelectorAll("input:checked")).map(function(i){return i.value})}
@@ -909,22 +1096,11 @@ $("acs").onchange=async function(){
 setInterval(function(){if(!document.hidden&&me)loadFriends().catch(function(){})},45000);
 var photoUrls={},viewing=null;
 function photoSrc(p){var c=photoUrls[p];return c&&c.exp>Date.now()?c.url:""}
-function photoHtml(m){
-  if(!m.image_path)return"";
-  var u=photoSrc(m.image_path);
-  return '<img class="ph" data-path="'+esc(m.image_path)+'" '+(u?'src="'+u+'" ':'')+'alt="Photo">';
-}
 async function signPhotos(paths){
   var need=paths.filter(function(x){return !photoSrc(x)});
   if(!need.length)return;
   var r=await sb.storage.from("photos").createSignedUrls(need,3600);
   (r.data||[]).forEach(function(x){if(x.signedUrl)photoUrls[x.path]={url:x.signedUrl,exp:Date.now()+3300e3}});
-}
-async function hydrate(root){
-  var imgs=[].slice.call(root.querySelectorAll("img[data-path]")).filter(function(i){return !i.getAttribute("src")});
-  if(!imgs.length)return;
-  try{await signPhotos(imgs.map(function(i){return i.dataset.path}))}catch(e){return}
-  imgs.forEach(function(i){var u=photoSrc(i.dataset.path);if(u)i.src=u});
 }
 function shrinkImage(file,max,q){
   return new Promise(function(res,rej){
@@ -940,6 +1116,7 @@ function shrinkImage(file,max,q){
   });
 }
 async function sendPhoto(c,f){
+  if(offlineMode){alert("Envoi de photo impossible hors connexion.");return}
   if(!/^image\//.test(f.type)){alert("Choisis une image.");return}
   var pic=$("pic");pic.textContent="⏳";pic.disabled=true;
   try{
@@ -950,7 +1127,7 @@ async function sendPhoto(c,f){
     var row={conversation_id:c.id,body:"",image_path:path};if(replyTo&&replyTo.conversation_id===c.id)row.reply_to=replyTo.id;
     var r=await sb.from("messages").insert(row).select().single();
     if(r.error){await sb.storage.from("photos").remove([path]);throw r.error}
-    await signPhotos([path]);replyTo=null;forceBottom=true;add(r.data);
+    photoObj[path]=URL.createObjectURL(b);putPhoto(path,b);replyTo=null;forceBottom=true;add(r.data);
   }catch(e){
     alert("Photo non envoyée : "+(e.message||e));
     if($("pic")){$("pic").textContent="📷";$("pic").disabled=false}
@@ -958,8 +1135,7 @@ async function sendPhoto(c,f){
 }
 async function openViewer(m){
   viewing=m;
-  try{await signPhotos([m.image_path])}catch(e){}
-  $("vwi").src=photoSrc(m.image_path);
+  $("vwi").src=await getPhoto(m.image_path);
   $("vwo").textContent=m.sender_id===me.id?"Supprimer":"Signaler ou bloquer";
   $("vw").showModal();
 }
@@ -1007,7 +1183,7 @@ async function loadMe(){
   if(sp.error)sp=await sb.from("profiles").select("searchable").eq("id",me.id).single();
   searchable=!(sp.data&&sp.data.searchable===false);
   readReceipts=!(sp.data&&sp.data.read_receipts===false);
-  avatarOf[me.id]=(sp.data&&sp.data.avatar_path)||null;
+  if(sp.data&&"avatar_path" in sp.data)avatarOf[me.id]=sp.data.avatar_path||null;
   $("adminb").hidden=!isAdmin;
   if(isAdmin)refreshBadge();
 }
@@ -1034,7 +1210,7 @@ function renderReports(d){
       +(x.reported_id?'<button data-a="ban">'+(x.reported_banned?'Réactiver le compte':'Suspendre le compte')+'</button>':'')
       +'<button data-a="st">'+(x.status==="nouveau"?'Marquer traité':'Rouvrir')+'</button></div></div>';
   }).join("");
-  hydrate($("apl"));
+  hydrate($("apl"),false);
 }
 $("adminb").onclick=openPanel;
 $("apc").onclick=function(){$("adp").close();refreshBadge()};
@@ -1085,9 +1261,14 @@ $("rabl").onclick=async function(){
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
 
 /* ---- Démarrage ---- */
-sb.auth.getSession().then(function(r){
-  if(r.data.session)start(r.data.session.user);else{$("auth").hidden=false;loadSettings()}
-});
+(async function(){
+  var cu=await kvGet("user");
+  if(cu&&navigator.onLine===false){start(cu,true);return}
+  var r=await sb.auth.getSession();
+  if(r.data.session){start(r.data.session.user);return}
+  if(cu&&r.error&&isNetErr(r.error)){start(cu,true);return}
+  $("auth").hidden=false;loadSettings();
+})();
 })();
 </script>
 </body>
