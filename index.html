@@ -173,6 +173,7 @@ dialog.sheet{margin:auto auto 0;width:min(520px,100%);max-width:100%;border-radi
 .b.me .tk.rd{color:#7DF9FF;opacity:1}
 .top .s.ty{color:var(--me);font-weight:600}
 .offb{background:#6B7690;color:#fff;font-size:13px;padding:6px 12px;text-align:center}
+.newsep{align-self:center;background:var(--me);color:#fff;font-size:12px;padding:3px 12px;border-radius:10px;margin:10px 0 4px}
 </style>
 </head>
 <body>
@@ -344,7 +345,7 @@ function day(t){var d=new Date(t),n=new Date();if(d.toDateString()==n.toDateStri
 function say(el,t,ok){el.hidden=!t;el.textContent=t||"";el.className="msg"+(ok?" ok":"")}
 function parseEmails(t){var o=[];String(t).toLowerCase().split(/[\s,;]+/).forEach(function(x){if(x&&o.indexOf(x)<0)o.push(x)});return o}
 function title(c){if(c.group)return c.name||"Groupe";var o=c.members.filter(function(u){return u!==me.id})[0];return names[o]||"Compte supprimé"}
-var avatarOf={},readReceipts=true,forceBottom=false,lastTyping=0,tch=null,tcid=null,typingUntil={};
+var avatarOf={},readReceipts=true,forceBottom=false,forceSep=false,lastTyping=0,tch=null,tcid=null,typingUntil={};
 function avatarUrl(p){return sb.storage.from("avatars").getPublicUrl(p).data.publicUrl}
 function avatarFor(uid,name,extra){
   var p=uid&&avatarOf[uid];
@@ -415,8 +416,10 @@ function showErr(err){
 
 /* ---- Données ---- */
 async function loadConvs(){
-  var r=await sb.from("members").select("conversation_id, pinned, conversations(id,name,is_group,created_at,created_by)").eq("user_id",me.id);
-  if(r.error&&/pinned/.test(r.error.message))r=await sb.from("members").select("conversation_id, conversations(id,name,is_group,created_at,created_by)").eq("user_id",me.id);
+  var CS="conversations(id,name,is_group,created_at,created_by)";
+  var r=await sb.from("members").select("conversation_id, pinned, seen_at, "+CS).eq("user_id",me.id);
+  if(r.error&&/seen_at/.test(r.error.message))r=await sb.from("members").select("conversation_id, pinned, "+CS).eq("user_id",me.id);
+  if(r.error&&/pinned/.test(r.error.message))r=await sb.from("members").select("conversation_id, "+CS).eq("user_id",me.id);
   if(r.error)throw r.error;
   var rows=(r.data||[]).filter(function(x){return x.conversations});
   var ids=rows.map(function(x){return x.conversation_id});
@@ -432,9 +435,12 @@ async function loadConvs(){
   await loadAvatars(uids);
   var ms=chk(await sb.from("messages").select("*").in("conversation_id",ids).order("created_at",{ascending:false}).limit(300)).data||[];
   var old={};convs.forEach(function(c){old[c.id]=c.unread});
+  var oldDiv={};convs.forEach(function(c){oldDiv[c.id]=c.divN});
+  var uc=await sb.rpc("unread_counts");chk(uc);var cnt=null;
+  if(!uc.error&&uc.data){cnt={};uc.data.forEach(function(x){cnt[x.conversation_id]=Number(x.n)})}
   convs=rows.map(function(x,i){
     var c=x.conversations;
-    return{id:c.id,name:c.name,group:c.is_group,idx:i,unread:old[c.id]||0,pinned:!!x.pinned,
+    return{id:c.id,name:c.name,group:c.is_group,idx:i,unread:c.id===cur?0:(cnt?(cnt[c.id]||0):(old[c.id]||0)),divN:oldDiv[c.id]||0,seen:x.seen_at||null,pinned:!!x.pinned,
       members:all.filter(function(m){return m.conversation_id==c.id}).map(function(m){return m.user_id}),
       reads:(function(){var o={};all.forEach(function(m){if(m.conversation_id==c.id&&m.last_read_at)o[m.user_id]=m.last_read_at});return o})(),
       last:ms.filter(function(m){return m.conversation_id==c.id})[0]||null,created:c.created_at,creator:c.created_by};
@@ -532,12 +538,14 @@ function renderChat(){
   var other=c.group?null:c.members.filter(function(u){return u!==me.id})[0],iBlocked=!!other&&blocked.indexOf(other)>=0;
   var sub=c.group?c.members.map(function(u){return u==me.id?"Toi":(names[u]||"?")}).join(", "):"Conversation privée";
   var h=(offlineMode?'<div class="offb">📴 Hors connexion : tes messages partiront dès que le réseau revient.</div>':'')+'<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div class="tt"><div class="t">'+esc(title(c))+'</div><div class="s" id="csub" data-d="'+esc(sub)+'">'+esc(sub)+'</div></div><button class="icon-btn" id="more" aria-label="Plus d\'options">⋮</button></div><div class="msgs" id="msgs">';
-  var list=msgs[c.id]||[],lastDay="",lastSender=null;
+  var list=msgs[c.id]||[],lastDay="",lastSender=null,sepId=null;
+  if(c.divN>0){var cn=0;for(var qi=list.length-1;qi>=0;qi--){var mq=list[qi];if(mq.sender_id!==me.id&&!mq.pending&&blocked.indexOf(mq.sender_id)<0){cn++;if(cn===c.divN){sepId=mq.id;break}}}}
   if(!list.length)h+='<div class="empty">Dis bonjour 👋</div>';
   list.forEach(function(m){
     if(blocked.indexOf(m.sender_id)>=0)return;
     var dl=dayLabel(m.created_at);
     if(dl!==lastDay){h+='<div class="day">'+esc(dl)+'</div>';lastDay=dl;lastSender=null}
+    if(m.id===sepId){h+='<div class="newsep">'+c.divN+(c.divN>1?" messages non lus":" message non lu")+'</div>';lastSender=null}
     var mine=m.sender_id==me.id,first=m.sender_id!==lastSender;lastSender=m.sender_id;
     h+='<div class="b'+(mine?' me':'')+(first?' first':'')+(m.image_path&&!m.body&&!m.reply_to?' img':'')+'" data-id="'+m.id+'">'
       +(c.group&&!mine&&first?'<span class="who" style="color:'+COLORS[hash(names[m.sender_id]||"?")%COLORS.length]+'">'+esc(names[m.sender_id]||"Compte supprimé")+'</span>':'')
@@ -550,6 +558,7 @@ function renderChat(){
   $("chat").innerHTML=h;renderedFor=c.id;
   if($("txt")){$("txt").value=keep;if(had)$("txt").focus()}
   var box=$("msgs");box.scrollTop=atBottom?box.scrollHeight:oldTop;
+  if(forceSep){forceSep=false;var spx=box.querySelector(".newsep");if(spx)spx.scrollIntoView({block:"start"})}
   box.onclick=function(e){
     var q=e.target.closest(".q");if(q){if(q.dataset.id)jumpTo(q.dataset.id);return}
     var el=e.target.closest(".b");if(!el)return;
@@ -564,7 +573,7 @@ function renderChat(){
     if(t.clientX-tx>70&&Math.abs(t.clientY-ty)<30){var m=findMsg(el.dataset.id);if(m)setReply(m)}
   },{passive:true});
   hydrate(box);
-  $("back").onclick=function(){cur=null;replyTo=null;leaveTyping();$("app").classList.remove("open");renderList();renderChat()};
+  $("back").onclick=function(){cur=null;replyTo=null;leaveTyping();convs.forEach(function(x){x.divN=0});$("app").classList.remove("open");renderList();renderChat()};
   $("more").onclick=function(){
     var it=[];
     if(c.group){
@@ -614,7 +623,7 @@ function isRead(c,m){
 }
 function tickHtml(c,m){if(m.pending)return ' <span class="tk" aria-label="En attente">🕓</span>';var r=isRead(c,m);return ' <span class="tk'+(r?' rd':'')+'" aria-label="'+(r?'Lu':'Envoyé')+'">'+(r?'✓✓':'✓')+'</span>'}
 function markRead(cid){
-  if(offlineMode||!readReceipts||document.hidden||cid!==cur)return;
+  if(offlineMode||document.hidden||cid!==cur)return;
   sb.rpc("mark_read",{cid:cid}).then(function(){},function(){});
 }
 function applyRead(n){
@@ -702,11 +711,11 @@ function add(m){
   if(list.some(function(x){return x.id==m.id}))return;
   list.push(m);cacheMsgs(m.conversation_id);
   var c=convs.filter(function(x){return x.id===m.conversation_id})[0];
-  if(c){c.last=m;if(cur!==c.id&&m.sender_id!==me.id&&blocked.indexOf(m.sender_id)<0)c.unread++}
+  if(c){c.last=m;if(cur!==c.id&&m.sender_id!==me.id&&blocked.indexOf(m.sender_id)<0)c.unread++;if(cur===c.id&&c.divN>0&&m.sender_id!==me.id&&blocked.indexOf(m.sender_id)<0)c.divN++}
   renderList();if(cur===m.conversation_id){renderChat();if(m.sender_id!==me.id)markRead(m.conversation_id)}
 }
 async function open(id){
-  cur=id;replyTo=null;joinTyping(id);var c=convs.filter(function(x){return x.id===id})[0];if(c)c.unread=0;
+  cur=id;replyTo=null;joinTyping(id);var c=convs.filter(function(x){return x.id===id})[0];convs.forEach(function(x){x.divN=0});var un0=c?c.unread:0;if(c){c.divN=un0;c.unread=0}
   $("app").classList.add("open");renderList();
   var data=null;
   if(!offlineMode){
@@ -715,7 +724,7 @@ async function open(id){
   }
   if(!data)data=((await kvGet("msgs:"+id))||[]).concat(outbox.filter(function(x){return x.conversation_id===id}));
   else cacheMsgs(id);
-  msgs[id]=data;forceBottom=true;renderChat();markRead(id);
+  msgs[id]=data;forceBottom=true;forceSep=un0>0;renderChat();markRead(id);
 }
 var editing=null,renderedFor=null;
 function findMsg(id){for(var k in msgs){var l=msgs[k];for(var i=0;i<l.length;i++)if(l[i].id==id)return l[i]}return null}
