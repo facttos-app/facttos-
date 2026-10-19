@@ -196,6 +196,20 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
 .camrec{width:68px;height:68px;border-radius:50%;background:#fff;color:#e53935;font-size:30px;line-height:1;border:4px solid rgba(255,255,255,.5)}
 .camrec.on{background:#e53935;color:#fff}
 .camsend{width:68px;height:68px;border-radius:50%;background:var(--me);color:#fff;font-size:28px}
+.pfh{display:flex;align-items:center;gap:14px;padding:6px 0 10px}
+.pfn{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:0}
+.pfn b{font-size:18px;overflow-wrap:anywhere}
+.av.lg{width:72px;height:72px;font-size:28px}
+.chipbtn{padding:6px 12px;border-radius:14px;border:1px solid var(--line);font-size:13px;color:var(--me)}
+.prow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 4px;border-bottom:1px solid var(--line)}
+.prow.ro{cursor:default}
+.pi{flex:none;width:28px;text-align:center;font-size:19px}
+.pt2{flex:1;min-width:0;display:flex;flex-direction:column;overflow-wrap:anywhere}
+.pt2 small{color:var(--mute);font-size:12px}
+.pa{flex:none;font-size:15px}
+.pe{flex:none;color:var(--mute)}
+.aud{display:flex;gap:10px;align-items:center;padding:8px 0;font-size:15px}
+#pex{width:100%}
 </style>
 </head>
 <body>
@@ -245,17 +259,40 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
       <div id="fres"></div>
       <div id="flist"></div>
     </div>
+    <div class="pane" id="pf2" hidden>
+      <div id="pfl"></div>
+      <h3 class="fh">Compte</h3>
+      <button type="button" class="prow" id="psb"><span class="pi">⚙</span><span class="pt2"><b>Paramètres du compte</b><small>Recherche, confirmations de lecture, déconnexion, suppression</small></span><span class="pe">›</span></button>
+      <a href="confidentialite.html" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:14px;color:var(--me);font-size:14px">Confidentialité et conditions</a>
+      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 33</p>
+    </div>
     <button class="fab" id="new" aria-label="Nouvelle conversation">＋</button>
     </div>
     <nav class="tabs" id="tabs">
       <button class="tab on" id="tabc" type="button"><span class="ti">💬</span><span class="tl">Discussions</span><b class="tb" id="tbc" hidden></b></button>
       <button class="tab" id="frb" type="button"><span class="ti">👥</span><span class="tl">Amis</span><b class="tb" id="tbf" hidden></b></button>
       <button class="tab" id="adminb" type="button" hidden><span class="ti">🛡</span><span class="tl">Admin</span><b class="tb" id="tba" hidden></b></button>
-      <button class="tab" id="acc" type="button"><span class="ti">⚙</span><span class="tl">Compte</span></button>
+      <button class="tab" id="acc" type="button"><span class="ti">👤</span><span class="tl">Profil</span></button>
     </nav>
   </aside>
   <main class="chat" id="chat"></main>
 </div>
+
+<dialog id="pe">
+  <form id="pef">
+    <h2 id="pet" style="margin-top:0"></h2>
+    <div id="pei"></div>
+    <p class="mute" style="margin:12px 0 4px">Qui peut voir cette information ?</p>
+    <div id="pev"></div>
+    <p class="msg" id="pem" hidden></p>
+    <div class="act"><button type="button" id="pec" style="padding:10px 14px">Annuler</button><button type="button" id="pek" style="padding:10px 14px;color:#D6336C">Effacer</button><button class="send" type="submit">Enregistrer</button></div>
+  </form>
+</dialog>
+
+<dialog id="pv" style="width:min(520px,96vw)">
+  <div style="display:flex;justify-content:flex-end"><button class="icon-btn" id="pvc" aria-label="Fermer">✕</button></div>
+  <div id="pvb" style="max-height:70vh;overflow-y:auto"></div>
+</dialog>
 
 <dialog id="ma" class="sheet"><div id="mab"></div></dialog>
 
@@ -537,7 +574,7 @@ $("menu").onclick=function(){
   var it=[
     {t:"👥 Nouveau groupe",f:function(){$("new").click()}},
     {t:"🤝 Amis",f:openFriends},
-    {t:"⚙ Mon compte",f:function(){$("acc").click()}}
+    {t:"👤 Mon profil",f:function(){$("acc").click()}}
   ];
   if(isAdmin)it.push({t:"🛡 Administration",f:openPanel});
   it.push({t:"⎋ Se déconnecter",d:true,f:function(){$("out").click()}});
@@ -620,7 +657,7 @@ function renderChat(){
         if(r.error||!r.data||!r.data.length){alert("Impossible de quitter : "+(r.error?r.error.message:"droits manquants"));return}
         cur=null;$("app").classList.remove("open");await loadConvs();renderChat();
       }});
-    }else if(other)it.push({t:"⚑ Signaler ou bloquer",d:true,f:function(){openRa(other,null,c.id)}});
+    }else if(other){it.push({t:"👤 Voir le profil",f:function(){viewProfile(other)}});it.push({t:"⚑ Signaler ou bloquer",d:true,f:function(){openRa(other,null,c.id)}})}
     if(it.length)sheet(it);
   };
   if($("pic")){
@@ -862,7 +899,7 @@ $("pf").onsubmit=async function(e){
   say($("pm"),"");$("pn").value="";$("pw").close();alert("Mot de passe modifié.");
 };
 sb.auth.onAuthStateChange(function(ev){if(ev==="PASSWORD_RECOVERY"&&!$("pw").open)$("pw").showModal()});
-$("acc").onclick=function(){$("acs").checked=searchable;$("acr").checked=readReceipts;renderMyAv();$("ace").textContent=me.email||"";$("adbox").hidden=true;$("adc").value="";say($("adm"),"");$("ac").showModal()};
+$("psb").onclick=function(){$("acs").checked=searchable;$("acr").checked=readReceipts;renderMyAv();$("ace").textContent=me.email||"";$("adbox").hidden=true;$("adc").value="";say($("adm"),"");$("ac").showModal()};
 $("acl").onclick=function(){$("ac").close()};
 $("alo").onclick=function(){$("out").click()};
 $("ads").onclick=function(){$("adbox").hidden=false;$("adc").focus()};
@@ -1348,6 +1385,121 @@ async function hydrateVideo(root){
     if(s.data&&s.data.signedUrl)a.src=s.data.signedUrl;
   }));
 }
+/* ---- profil : informations de l'utilisateur ---- */
+var PF=[
+ {g:"Intro",f:[{k:"bio",l:"À propos de moi",t:"area",d:"all",p:"Quelques mots sur toi"}]},
+ {g:"Informations personnelles",f:[
+   {k:"city",l:"Ville actuelle",d:"friends"},
+   {k:"hometown",l:"Ville d'origine",d:"friends"},
+   {k:"birth",l:"Date de naissance",t:"date",d:"me"},
+   {k:"relationship",l:"Situation amoureuse",t:"select",o:["Célibataire","En couple","Fiancé(e)","Marié(e)","Divorcé(e)","Veuf / veuve","C'est compliqué"],d:"me"},
+   {k:"family",l:"Famille",d:"me",p:"Ex. : père de 2 enfants"},
+   {k:"gender",l:"Genre",t:"select",o:["Homme","Femme","Autre"],d:"me"},
+   {k:"languages",l:"Langues",d:"friends",p:"Ex. : français, fon, anglais"}]},
+ {g:"Expérience professionnelle",f:[{k:"job",l:"Profession ou emploi",d:"friends"}]},
+ {g:"Formation",f:[{k:"education",l:"Lycée ou université",d:"friends"}]},
+ {g:"Loisirs",f:[{k:"hobbies",l:"Passe-temps",d:"friends"}]},
+ {g:"Centres d'intérêt",f:[
+   {k:"music",l:"Musique",d:"friends"},
+   {k:"tv",l:"Séries télé",d:"friends"},
+   {k:"movies",l:"Films",d:"friends"},
+   {k:"games",l:"Jeux",d:"friends"},
+   {k:"sports",l:"Équipes sportives et athlètes",d:"friends"}]},
+ {g:"Voyage",f:[{k:"places",l:"Lieux",d:"friends"}]},
+ {g:"Liens",f:[{k:"website",l:"Sites web, blogs, portfolios",d:"friends"}]},
+ {g:"Coordonnées",f:[
+   {k:"social",l:"Réseaux sociaux",d:"friends"},
+   {k:"phone",l:"Téléphone",t:"tel",d:"me"},
+   {k:"email_public",l:"Adresse e-mail à afficher",t:"email",d:"me"}]}
+];
+var PFI={bio:"👋",city:"📍",hometown:"🏠",birth:"🎂",relationship:"💞",family:"👪",gender:"🧑",languages:"🗣",job:"💼",education:"🎓",hobbies:"🎨",music:"🎵",tv:"📺",movies:"🎬",games:"🎮",sports:"🏅",places:"🧭",website:"🔗",social:"@",phone:"📞",email_public:"✉"};
+var AUD={all:["🌍","Tout le monde"],friends:["👥","Amis"],me:["🔒","Moi uniquement"]};
+var prof={data:{},vis:{}},profLoaded=false,pedit=null;
+function fieldVal(f,v){
+  if(!v)return "";
+  if(f.t==="date"){var d=new Date(v+"T12:00:00");return isNaN(d)?v:d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}
+  return v;
+}
+function findField(k){var r=null;PF.forEach(function(g){g.f.forEach(function(x){if(x.k===k)r=x})});return r}
+async function loadMyProfile(){
+  if(!offlineMode){
+    var r=await sb.from("profile_details").select("data,vis").eq("user_id",me.id).maybeSingle();
+    if(!r.error){prof={data:(r.data&&r.data.data)||{},vis:(r.data&&r.data.vis)||{}};kvSet("myprofile",prof);profLoaded=true;return}
+  }
+  var c=await kvGet("myprofile");if(c)prof=c;profLoaded=true;
+}
+function renderProfile(){
+  var nm=names[me.id]||(me.user_metadata&&me.user_metadata.name)||me.email||"";
+  var h='<div class="pfh">'+avatarFor(me.id,nm," lg")+'<div class="pfn"><b>'+esc(nm)+'</b><span class="mute">'+esc(me.email||"")+'</span><button type="button" class="chipbtn" id="pfph">Changer la photo</button></div></div>';
+  PF.forEach(function(g){
+    h+='<h3 class="fh">'+esc(g.g)+'</h3>';
+    g.f.forEach(function(f){
+      var v=prof.data[f.k],a=prof.vis[f.k]||f.d||"friends";
+      h+='<button type="button" class="prow" data-k="'+f.k+'"><span class="pi">'+PFI[f.k]+'</span><span class="pt2">'+(v?'<b>'+esc(fieldVal(f,v))+'</b><small>'+esc(f.l)+'</small>':'<span class="mute">Ajouter : '+esc(f.l.toLowerCase())+'</span>')+'</span><span class="pa" title="'+AUD[a][1]+'">'+AUD[a][0]+'</span><span class="pe">✏</span></button>';
+    });
+  });
+  $("pfl").innerHTML=h;
+  $("pfph").onclick=function(){$("avf").click()};
+}
+async function openProfile(){
+  setTab("profile");
+  renderProfile();
+  if(!profLoaded){await loadMyProfile();renderProfile()}
+}
+$("acc").onclick=openProfile;
+$("pfl").onclick=function(e){var b=e.target.closest(".prow");if(b)openFieldEditor(b.dataset.k)};
+var _rma=renderMyAv;renderMyAv=function(){_rma();if(tab==="profile")renderProfile()};
+function openFieldEditor(k){
+  if(offlineMode){alert("Connexion internet nécessaire pour modifier ton profil.");return}
+  var f=findField(k);if(!f)return;
+  pedit=f;
+  var v=prof.data[k]||"",a=prof.vis[k]||f.d||"friends",inp;
+  if(f.t==="area")inp='<textarea class="field" id="pex" rows="4" maxlength="500" placeholder="'+esc(f.p||"")+'">'+esc(v)+'</textarea>';
+  else if(f.t==="select")inp='<select class="field" id="pex"><option value="">—</option>'+f.o.map(function(o){return '<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>'}).join("")+'</select>';
+  else inp='<input class="field" id="pex" type="'+(f.t||"text")+'" maxlength="200" value="'+esc(v)+'" placeholder="'+esc(f.p||"")+'" autocomplete="off">';
+  $("pet").textContent=f.l;$("pei").innerHTML=inp;
+  $("pev").innerHTML=["all","friends","me"].map(function(x){return '<label class="aud"><input type="radio" name="aud" value="'+x+'"'+(x===a?' checked':'')+'><span>'+AUD[x][0]+' '+AUD[x][1]+'</span></label>'}).join("");
+  $("pek").hidden=!v;
+  say($("pem"),"");$("pe").showModal();
+}
+async function saveField(k,val,aud){
+  var d=JSON.parse(JSON.stringify(prof.data)),v=JSON.parse(JSON.stringify(prof.vis));
+  if(val)d[k]=val;else delete d[k];
+  v[k]=aud;
+  var r=await sb.rpc("save_profile",{d:d,v:v});
+  if(r.error){say($("pem"),r.error.message);return}
+  prof={data:d,vis:v};kvSet("myprofile",prof);
+  $("pe").close();renderProfile();
+}
+$("pef").onsubmit=function(e){
+  e.preventDefault();if(!pedit)return;
+  var sel=$("pev").querySelector("input:checked");
+  saveField(pedit.k,$("pex").value.trim(),sel?sel.value:(pedit.d||"friends"));
+};
+$("pek").onclick=function(){
+  if(!pedit)return;
+  var sel=$("pev").querySelector("input:checked");
+  saveField(pedit.k,"",sel?sel.value:(pedit.d||"friends"));
+};
+$("pec").onclick=function(){$("pe").close()};
+async function viewProfile(uid){
+  if(offlineMode){alert("Connexion internet nécessaire pour voir un profil.");return}
+  var r=await sb.rpc("get_profile",{uid:uid});
+  if(r.error){alert(r.error.message);return}
+  if(r.data===null){alert("Ce profil n'est pas disponible.");return}
+  var d=r.data||{},nm=names[uid]||"Profil",any=false;
+  await loadAvatars([uid]);
+  var h='<div class="pfh">'+avatarFor(uid,nm," lg")+'<div class="pfn"><b>'+esc(nm)+'</b></div></div>';
+  PF.forEach(function(g){
+    var rows=g.f.filter(function(f){return d[f.k]});
+    if(!rows.length)return;
+    any=true;
+    h+='<h3 class="fh">'+esc(g.g)+'</h3>'+rows.map(function(f){return '<div class="prow ro"><span class="pi">'+PFI[f.k]+'</span><span class="pt2"><b>'+esc(fieldVal(f,d[f.k]))+'</b><small>'+esc(f.l)+'</small></span></div>'}).join("");
+  });
+  if(!any)h+='<p class="mute">Cette personne n\'a rien partagé avec toi pour le moment.</p>';
+  $("pvb").innerHTML=h;$("pv").showModal();
+}
+$("pvc").onclick=function(){$("pv").close()};
 /* ---- photos : copie locale ---- */
 function photoHtml(m){
   if(!m.image_path)return"";
@@ -1405,7 +1557,7 @@ function renderFriends(){
       fr=friends.filter(function(f){return f.status==="accepted"}),h="";
   if(inc.length)h+='<h3 class="fh">Demandes reçues</h3>'+inc.map(function(f){return frow(f.other_name,'<button data-a="acc" data-fid="'+f.fid+'">Accepter</button><button data-a="dec" data-fid="'+f.fid+'">Refuser</button>',f.other_id)}).join("");
   if(out.length)h+='<h3 class="fh">Demandes envoyées</h3>'+out.map(function(f){return frow(f.other_name,'<button data-a="rem" data-id="'+f.other_id+'">Annuler</button>',f.other_id)}).join("");
-  h+='<h3 class="fh">Mes amis ('+fr.length+')</h3>'+(fr.length?fr.map(function(f){return frow(f.other_name,'<button data-a="chat" data-id="'+f.other_id+'">Écrire</button><button data-a="rem" data-c="1" data-id="'+f.other_id+'">Retirer</button>',f.other_id)}).join(""):'<p class="mute">Aucun ami pour l\'instant. Cherche une personne par son nom ci-dessus.</p>');
+  h+='<h3 class="fh">Mes amis ('+fr.length+')</h3>'+(fr.length?fr.map(function(f){return frow(f.other_name,'<button data-a="prof" data-id="'+f.other_id+'">Profil</button><button data-a="chat" data-id="'+f.other_id+'">Écrire</button><button data-a="rem" data-c="1" data-id="'+f.other_id+'">Retirer</button>',f.other_id)}).join(""):'<p class="mute">Aucun ami pour l\'instant. Cherche une personne par son nom ci-dessus.</p>');
   $("flist").innerHTML=h;
 }
 async function searchPeople(q){
@@ -1416,7 +1568,7 @@ async function searchPeople(q){
   await loadAvatars(d.map(function(x){return x.id}));
   $("fres").innerHTML=d.length?'<h3 class="fh">Résultats</h3>'+d.map(function(x){
     names[x.id]=x.name;
-    var b=x.relation==="none"?'<button data-a="add" data-id="'+x.id+'">Ajouter</button>':x.relation==="pending_out"?'<span class="mute">Demande envoyée</span>':x.relation==="pending_in"?'<button data-a="acc" data-fid="'+x.fid+'">Accepter</button>':'<span class="mute">Ami</span>';
+    var b=x.relation==="none"?'<button data-a="prof" data-id="'+x.id+'">Profil</button><button data-a="add" data-id="'+x.id+'">Ajouter</button>':x.relation==="pending_out"?'<span class="mute">Demande envoyée</span>':x.relation==="pending_in"?'<button data-a="acc" data-fid="'+x.fid+'">Accepter</button>':'<span class="mute">Ami</span>';
     return frow(x.name,b,x.id);
   }).join(""):'<p class="mute">Aucune personne trouvée.</p>';
 }
@@ -1424,8 +1576,8 @@ function setTabBadge(id,n){var b=$(id);if(!b)return;b.hidden=!n;b.textContent=n>
 var tab="chats";
 function setTab(t){
   tab=t;
-  $("list").hidden=t!=="chats";$("fd").hidden=t!=="friends";$("sbar").hidden=t!=="chats";$("new").hidden=t!=="chats";
-  $("tabc").classList.toggle("on",t==="chats");$("frb").classList.toggle("on",t==="friends");
+  $("list").hidden=t!=="chats";$("fd").hidden=t!=="friends";$("pf2").hidden=t!=="profile";$("sbar").hidden=t!=="chats";$("new").hidden=t!=="chats";
+  $("tabc").classList.toggle("on",t==="chats");$("frb").classList.toggle("on",t==="friends");$("acc").classList.toggle("on",t==="profile");
 }
 $("tabc").onclick=function(){setTab("chats")};
 async function openFriends(){
@@ -1451,6 +1603,7 @@ $("fq").oninput=function(){
 $("fd").onclick=async function(e){
   var b=e.target.closest("button[data-a]");if(!b)return;
   var a=b.dataset.a,r;
+  if(a==="prof"){viewProfile(b.dataset.id);return}
   if(a==="chat"){startChat(b.dataset.id);return}
   if(a==="add")r=await sb.rpc("send_friend_request",{target:b.dataset.id});
   else if(a==="acc")r=await sb.rpc("respond_friend_request",{fid:+b.dataset.fid,accept:true});
