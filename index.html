@@ -174,6 +174,16 @@ dialog.sheet{margin:auto auto 0;width:min(520px,100%);max-width:100%;border-radi
 .top .s.ty{color:var(--me);font-weight:600}
 .offb{background:#6B7690;color:#fff;font-size:13px;padding:6px 12px;text-align:center}
 .newsep{align-self:center;background:var(--me);color:#fff;font-size:12px;padding:3px 12px;border-radius:10px;margin:10px 0 4px}
+.vm{display:flex;align-items:center;gap:8px;min-width:200px;max-width:100%}
+.vp{flex:none;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.12);font-size:15px}
+.b.me .vp{background:rgba(255,255,255,.25)}
+.vs{flex:1;min-width:0;accent-color:#FF4D8D}
+.vt{flex:none;font-size:12px;opacity:.8;min-width:34px;text-align:right}
+.recbar{align-items:center}
+.rdot{width:10px;height:10px;border-radius:50%;background:#e53935;animation:blink 1s infinite;flex:none}
+@keyframes blink{50%{opacity:.25}}
+.rtm{font-variant-numeric:tabular-nums;min-width:38px}
+.radio{width:100%;margin:6px 0}
 </style>
 </head>
 <body>
@@ -459,7 +469,7 @@ function renderList(){
     if(filt==="unread"&&!c.unread)return false;
     if(filt==="fav"&&!c.pinned)return false;
     if(filt==="groups"&&!c.group)return false;
-    if(q){var l=c.last,t=title(c).toLowerCase(),b=l&&!l.image_path?String(l.body||"").toLowerCase():"";if(t.indexOf(q)<0&&b.indexOf(q)<0)return false}
+    if(q){var l=c.last,t=title(c).toLowerCase(),b=l&&!l.image_path&&!l.audio_path?String(l.body||"").toLowerCase():"";if(t.indexOf(q)<0&&b.indexOf(q)<0)return false}
     return true;
   }).sort(function(a,b){
     if(!!a.pinned!==!!b.pinned)return a.pinned?-1:1;
@@ -467,7 +477,7 @@ function renderList(){
   });
   var h="";
   rows.forEach(function(c){
-    var l=c.last,p=l?((l.sender_id==me.id?"Vous : ":(c.group?(names[l.sender_id]||"Compte supprimé")+" : ":""))+(l.image_path?"📷 Photo":l.body)):"Aucun message";
+    var l=c.last,p=l?((l.sender_id==me.id?"Vous : ":(c.group?(names[l.sender_id]||"Compte supprimé")+" : ":""))+(l.image_path?"📷 Photo":l.audio_path?"🎤 Message vocal":l.body)):"Aucun message";
     if(l&&blocked.indexOf(l.sender_id)>=0)p="Message masqué";
     var u=c.unread>0;
     h+='<button class="row'+(cur===c.id?' on':'')+(u?' unr':'')+'" data-id="'+c.id+'">'+avatar(c)
@@ -521,7 +531,7 @@ function dayLabel(t){
   if(d.toDateString()===y.toDateString())return"Hier";
   return d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:d.getFullYear()===n.getFullYear()?undefined:"numeric"});
 }
-function snippet(m){return m.image_path?"📷 Photo":String(m.body||"")}
+function snippet(m){return m.image_path?"📷 Photo":m.audio_path?"🎤 Message vocal":String(m.body||"")}
 function quoteHtml(m){
   if(!m.reply_to)return"";
   var o=findMsg(m.reply_to);
@@ -549,31 +559,34 @@ function renderChat(){
     var mine=m.sender_id==me.id,first=m.sender_id!==lastSender;lastSender=m.sender_id;
     h+='<div class="b'+(mine?' me':'')+(first?' first':'')+(m.image_path&&!m.body&&!m.reply_to?' img':'')+'" data-id="'+m.id+'">'
       +(c.group&&!mine&&first?'<span class="who" style="color:'+COLORS[hash(names[m.sender_id]||"?")%COLORS.length]+'">'+esc(names[m.sender_id]||"Compte supprimé")+'</span>':'')
-      +quoteHtml(m)+photoHtml(m)+esc(m.body)+'<time>'+(m.edited_at?'modifié · ':'')+hm(m.created_at)+(mine?tickHtml(c,m):'')+'</time></div>';
+      +quoteHtml(m)+photoHtml(m)+voiceHtml(m)+esc(m.body)+'<time>'+(m.edited_at?'modifié · ':'')+hm(m.created_at)+(mine?tickHtml(c,m):'')+'</time></div>';
   });
   h+='</div>';
   if(meBanned)h+='<div class="bar"><span style="color:#D6336C;font-size:14px">Ton compte est suspendu : tu ne peux plus envoyer de messages.</span></div>';
   else if(iBlocked)h+='<div class="bar" style="justify-content:space-between"><span style="color:var(--mute);font-size:14px">Tu as bloqué cette personne.</span><button class="send" id="unb" type="button">Débloquer</button></div>';
-  else h+='<div class="rp" id="rp" hidden></div><form class="bar" id="bar"><div class="pill"><input type="text" id="txt" placeholder="Message" autocomplete="off" aria-label="Message"><button type="button" id="pic" aria-label="Envoyer une photo">📷</button></div><input type="file" id="file" accept="image/*" hidden><button class="sendc" type="submit" aria-label="Envoyer">➤</button></form>';
+  else h+='<div class="rp" id="rp" hidden></div><form class="bar" id="bar"><div class="pill"><input type="text" id="txt" placeholder="Message" autocomplete="off" aria-label="Message"><button type="button" id="pic" aria-label="Envoyer une photo">📷</button></div><input type="file" id="file" accept="image/*" hidden><button class="sendc" type="submit" id="sbtn" aria-label="Message vocal">🎤</button></form><div class="bar recbar" id="recbar" hidden></div>';
   $("chat").innerHTML=h;renderedFor=c.id;
-  if($("txt")){$("txt").value=keep;if(had)$("txt").focus()}
+  if($("txt")){$("txt").value=keep;if(had)$("txt").focus();syncSend()}
   var box=$("msgs");box.scrollTop=atBottom?box.scrollHeight:oldTop;
   if(forceSep){forceSep=false;var spx=box.querySelector(".newsep");if(spx)spx.scrollIntoView({block:"start"})}
   box.onclick=function(e){
     var q=e.target.closest(".q");if(q){if(q.dataset.id)jumpTo(q.dataset.id);return}
+    var vp=e.target.closest(".vp");if(vp){var vm=vp.closest(".vm");toggleVoice(vm.dataset.path,vm);return}
+    if(e.target.closest(".vs"))return;
     var el=e.target.closest(".b");if(!el)return;
     var m=findMsg(el.dataset.id);if(!m)return;
     if(e.target.closest("img.ph")){openViewer(m);return}
     openActions(m);
   };
   var tx=0,ty=0,tel=null;
-  box.addEventListener("touchstart",function(e){var t=e.touches[0];tx=t.clientX;ty=t.clientY;tel=e.target.closest(".b")},{passive:true});
+  box.addEventListener("touchstart",function(e){var t=e.touches[0];tx=t.clientX;ty=t.clientY;tel=e.target.closest(".vs")?null:e.target.closest(".b")},{passive:true});
+  box.addEventListener("input",function(e){var r=e.target.closest&&e.target.closest(".vs");if(r){var vm=r.closest(".vm");seekVoice(vm.dataset.path,r.value)}});
   box.addEventListener("touchend",function(e){
     if(!tel)return;var t=e.changedTouches[0],el=tel;tel=null;
     if(t.clientX-tx>70&&Math.abs(t.clientY-ty)<30){var m=findMsg(el.dataset.id);if(m)setReply(m)}
   },{passive:true});
   hydrate(box);
-  $("back").onclick=function(){cur=null;replyTo=null;leaveTyping();convs.forEach(function(x){x.divN=0});$("app").classList.remove("open");renderList();renderChat()};
+  $("back").onclick=function(){cancelRec();stopVoice();cur=null;replyTo=null;leaveTyping();convs.forEach(function(x){x.divN=0});$("app").classList.remove("open");renderList();renderChat()};
   $("more").onclick=function(){
     var it=[];
     if(c.group){
@@ -598,7 +611,7 @@ function renderChat(){
     blocked=blocked.filter(function(u){return u!==other});renderList();renderChat();
   };
   if($("bar"))$("bar").onsubmit=async function(e){
-    e.preventDefault();var v=$("txt").value.trim();if(!v)return;
+    e.preventDefault();var v=$("txt").value.trim();if(!v){startRec(c);return}
     var row={conversation_id:c.id,body:v};
     if(replyTo&&replyTo.conversation_id===c.id&&String(replyTo.id).indexOf("tmp-")!==0)row.reply_to=replyTo.id;
     $("txt").value="";
@@ -610,9 +623,9 @@ function renderChat(){
     }
     replyTo=null;forceBottom=true;add(r.data);
   };
-  if($("txt"))$("txt").oninput=sendTyping;
+  if($("txt"))$("txt").oninput=function(){sendTyping();syncSend()};
   showTyping(c.id);
-  renderReplyBar();
+  renderReplyBar();drawRec();syncVoice();
 }
 function isRead(c,m){
   if(!readReceipts)return false;
@@ -672,7 +685,7 @@ function jumpTo(id){
   el.scrollIntoView({block:"center",behavior:"smooth"});
   el.classList.add("hl");setTimeout(function(){el.classList.remove("hl")},1400);
 }
-function canEdit(m){return m.sender_id===me.id&&!m.image_path&&Date.now()-new Date(m.created_at).getTime()<EDIT_MS}
+function canEdit(m){return m.sender_id===me.id&&!m.image_path&&!m.audio_path&&Date.now()-new Date(m.created_at).getTime()<EDIT_MS}
 function sheet(items){
   sheetH=items.map(function(i){return i.f});
   $("mab").innerHTML=items.map(function(i,n){
@@ -690,8 +703,8 @@ function openActions(m){
   if(m.pending){sheet([{t:"✖ Annuler l'envoi",d:true,f:function(){cancelPending(m)}}]);return}
   var mine=m.sender_id===me.id,it=[{t:"↩ Répondre",f:function(){setReply(m)}}];
   if(m.image_path)it.push({t:"🖼 Voir la photo",f:function(){openViewer(m)}});
-  else it.push({t:"⧉ Copier",f:function(){copyText(m.body)}});
-  if(mine&&!m.image_path){
+  else if(!m.audio_path)it.push({t:"⧉ Copier",f:function(){copyText(m.body)}});
+  if(mine&&!m.image_path&&!m.audio_path){
     if(canEdit(m))it.push({t:"✎ Modifier",f:function(){openEdit(m.id)}});
     else it.push({h:"Modification impossible : plus de 15 minutes."});
   }
@@ -704,6 +717,7 @@ async function delOwn(m){
   var r=await sb.from("messages").delete().eq("id",m.id).select();
   if(r.error||!r.data||!r.data.length){alert("Suppression impossible.");return}
   if(m.image_path)sb.storage.from("photos").remove([m.image_path]);
+  if(m.audio_path)sb.storage.from("voice").remove([m.audio_path]);
   applyDelete(m.id);
 }
 function add(m){
@@ -715,7 +729,7 @@ function add(m){
   renderList();if(cur===m.conversation_id){renderChat();if(m.sender_id!==me.id)markRead(m.conversation_id)}
 }
 async function open(id){
-  cur=id;replyTo=null;joinTyping(id);var c=convs.filter(function(x){return x.id===id})[0];convs.forEach(function(x){x.divN=0});var un0=c?c.unread:0;if(c){c.divN=un0;c.unread=0}
+  if(cur!==id){cancelRec();stopVoice()}cur=id;replyTo=null;joinTyping(id);var c=convs.filter(function(x){return x.id===id})[0];convs.forEach(function(x){x.divN=0});var un0=c?c.unread:0;if(c){c.divN=un0;c.unread=0}
   $("app").classList.add("open");renderList();
   var data=null;
   if(!offlineMode){
@@ -961,6 +975,187 @@ window.addEventListener("online",function(){goOnline()});
 window.addEventListener("offline",function(){if(me)enterOffline()});
 document.addEventListener("visibilitychange",function(){if(!document.hidden)goOnline()});
 setInterval(function(){if(offlineMode&&!document.hidden)goOnline()},15000);
+/* ---- messages vocaux ---- */
+var rec=null,voiceObj={},playing=null;
+function fmtT(s){s=Math.max(0,Math.round(s||0));return Math.floor(s/60)+":"+("0"+(s%60)).slice(-2)}
+function syncSend(){
+  var b=$("sbtn"),t=$("txt");if(!b||!t)return;
+  var has=t.value.trim().length>0;
+  b.textContent=has?"➤":"🎤";b.setAttribute("aria-label",has?"Envoyer":"Message vocal");
+}
+function recMime(){
+  var c=["audio/mp4;codecs=mp4a.40.2","audio/mp4","audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
+  if(!window.MediaRecorder||!MediaRecorder.isTypeSupported)return "";
+  for(var i=0;i<c.length;i++){if(MediaRecorder.isTypeSupported(c[i]))return c[i]}
+  return "";
+}
+async function startRec(c){
+  if(rec)return;
+  if(offlineMode){alert("Connexion internet nécessaire pour envoyer un message vocal.");return}
+  if(!navigator.mediaDevices||!window.MediaRecorder){alert("L'enregistrement audio n'est pas disponible sur ce téléphone.");return}
+  var stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}
+  catch(e){alert("Autorise le micro pour FACTTOS dans les réglages du navigateur, puis réessaie.");return}
+  var mime=recMime(),mr;
+  try{mr=new MediaRecorder(stream,mime?{mimeType:mime,audioBitsPerSecond:32000}:{audioBitsPerSecond:32000})}
+  catch(e){mr=new MediaRecorder(stream)}
+  rec={cid:c.id,mr:mr,stream:stream,chunks:[],t0:Date.now(),phase:"rec",mime:mr.mimeType||mime||"audio/webm",secs:0,timer:null,url:"",audio:null,blob:null,sending:false};
+  mr.ondataavailable=function(e){if(rec&&e.data&&e.data.size)rec.chunks.push(e.data)};
+  mr.onstop=finishRec;
+  mr.start();
+  rec.timer=setInterval(tickRec,250);
+  drawRec();
+}
+function tickRec(){
+  if(!rec||rec.phase!=="rec")return;
+  var s=(Date.now()-rec.t0)/1000,el=$("rtm");
+  if(el)el.textContent=fmtT(s);
+  if(s>=300)stopRec();
+}
+function stopRec(){
+  if(!rec||rec.phase!=="rec"||rec.stopping)return;
+  rec.stopping=true;clearInterval(rec.timer);
+  rec.secs=Math.round((Date.now()-rec.t0)/1000);
+  try{rec.mr.stop()}catch(e){finishRec()}
+  try{rec.stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
+}
+function finishRec(){
+  if(!rec||rec.phase!=="rec")return;
+  var blob=new Blob(rec.chunks,{type:(rec.mime||"audio/webm").split(";")[0]});
+  if(rec.secs<1||blob.size<500){cancelRec();alert("Message vocal trop court.");return}
+  rec.blob=blob;rec.url=URL.createObjectURL(blob);rec.audio=new Audio(rec.url);rec.phase="review";
+  rec.audio.ontimeupdate=updReview;rec.audio.onended=updReview;rec.audio.onpause=updReview;rec.audio.onplay=updReview;
+  drawRec();
+}
+function cancelRec(){
+  if(!rec)return;
+  clearInterval(rec.timer);
+  try{if(rec.mr&&rec.mr.state!=="inactive"){rec.mr.onstop=null;rec.mr.stop()}}catch(e){}
+  try{rec.stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
+  if(rec.audio){try{rec.audio.pause()}catch(e){}}
+  if(rec.url)URL.revokeObjectURL(rec.url);
+  rec=null;drawRec();
+}
+function updReview(){
+  if(!rec||rec.phase!=="review")return;
+  var a=rec.audio,pl=$("rpl"),sk=$("rsk"),tm=$("rtm");
+  var d=(a.duration&&isFinite(a.duration))?a.duration:rec.secs;
+  if(pl)pl.textContent=a.paused?"▶":"⏸";
+  if(sk)sk.value=d?Math.round(a.currentTime/d*1000):0;
+  if(tm)tm.textContent=fmtT(a.paused&&a.currentTime===0?rec.secs:a.currentTime);
+}
+function drawRec(){
+  var rb=$("recbar"),bar=$("bar");if(!rb||!bar)return;
+  if(!rec||rec.cid!==cur){rb.hidden=true;bar.hidden=false;return}
+  bar.hidden=true;rb.hidden=false;
+  if(rec.phase==="rec"){
+    rb.innerHTML='<button type="button" class="icon-btn" id="rcx" aria-label="Annuler">🗑</button><span class="rdot"></span><span class="rtm" id="rtm">'+fmtT((Date.now()-rec.t0)/1000)+'</span><span class="mute" style="flex:1">Enregistrement…</span><button type="button" class="sendc" id="rst" aria-label="Arrêter">■</button>';
+    $("rst").onclick=stopRec;
+  }else{
+    rb.innerHTML='<button type="button" class="icon-btn" id="rcx" aria-label="Supprimer">🗑</button><button type="button" class="icon-btn" id="rpl" aria-label="Écouter">▶</button><input type="range" id="rsk" min="0" max="1000" value="0" style="flex:1;min-width:0"><span class="rtm" id="rtm">'+fmtT(rec.secs)+'</span><button type="button" class="sendc" id="rsd" aria-label="Envoyer">➤</button>';
+    $("rpl").onclick=function(){if(rec.audio.paused)rec.audio.play();else rec.audio.pause()};
+    $("rsk").oninput=function(){var a=rec.audio;if(a.duration&&isFinite(a.duration))a.currentTime=a.duration*this.value/1000};
+    $("rsd").onclick=sendRec;
+    updReview();
+  }
+  $("rcx").onclick=cancelRec;
+}
+async function sendRec(){
+  if(!rec||rec.phase!=="review"||rec.sending)return;
+  if(offlineMode){alert("Connexion internet nécessaire pour envoyer un message vocal.");return}
+  rec.sending=true;
+  var btn=$("rsd");if(btn){btn.textContent="⏳";btn.disabled=true}
+  var cid=rec.cid,blob=rec.blob,secs=rec.secs,mime=rec.mime||"";
+  try{
+    var ext=/mp4|aac/.test(mime)?"m4a":/ogg/.test(mime)?"ogg":"webm";
+    var path=cid+"/"+(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2))+"."+ext;
+    var up=await sb.storage.from("voice").upload(path,blob,{contentType:blob.type||"audio/webm"});
+    if(up.error)throw up.error;
+    var row={conversation_id:cid,body:"",audio_path:path,audio_secs:secs};
+    if(replyTo&&replyTo.conversation_id===cid&&String(replyTo.id).indexOf("tmp-")!==0)row.reply_to=replyTo.id;
+    var r=await sb.from("messages").insert(row).select().single();
+    if(r.error){await sb.storage.from("voice").remove([path]);throw r.error}
+    voiceObj[path]=URL.createObjectURL(blob);putVoice(path,blob);
+    cancelRec();replyTo=null;forceBottom=true;add(r.data);
+  }catch(e){
+    if(rec){rec.sending=false}
+    drawRec();
+    alert("Message vocal non envoyé : "+(e.message||e));
+  }
+}
+async function putVoice(path,blob){
+  await kvSet("voice:"+path,{blob:blob,ts:Date.now()});
+  var idx=(await kvGet("voiceIndex"))||[];
+  idx=idx.filter(function(x){return x.k!==path});idx.push({k:path,ts:Date.now()});
+  while(idx.length>100){var o=idx.shift();await kvDel("voice:"+o.k)}
+  await kvSet("voiceIndex",idx);
+}
+async function getVoice(path){
+  if(voiceObj[path])return voiceObj[path];
+  var c=await kvGet("voice:"+path);
+  if(c&&c.blob){voiceObj[path]=URL.createObjectURL(c.blob);return voiceObj[path]}
+  if(offlineMode)return "";
+  try{
+    var s=await sb.storage.from("voice").createSignedUrl(path,3600);
+    if(s.error||!s.data)return "";
+    var r=await tfetch(s.data.signedUrl);
+    if(!r.ok)return "";
+    var b=await r.blob();putVoice(path,b);
+    voiceObj[path]=URL.createObjectURL(b);return voiceObj[path];
+  }catch(e){return ""}
+}
+function voiceHtml(m){
+  if(!m.audio_path)return "";
+  return '<div class="vm" data-path="'+esc(m.audio_path)+'"><button type="button" class="vp" aria-label="Lire">▶</button><input type="range" class="vs" min="0" max="1000" value="0"><span class="vt">'+fmtT(m.audio_secs||0)+'</span></div>';
+}
+async function toggleVoice(path,vm){
+  if(playing&&playing.path===path){if(playing.el.paused)playing.el.play();else playing.el.pause();syncVoice();return}
+  stopVoice();
+  var btn=vm&&vm.querySelector(".vp");if(btn)btn.textContent="⏳";
+  var u=await getVoice(path);
+  if(!u){
+    if(btn)btn.textContent="▶";
+    alert(offlineMode?"Message vocal non téléchargé : connecte-toi à internet pour l'écouter.":"Impossible de charger ce message vocal.");
+    return;
+  }
+  var a=new Audio(u);playing={path:path,el:a};
+  a.ontimeupdate=syncVoice;a.onpause=syncVoice;a.onplay=syncVoice;
+  a.onended=function(){var p=path;playing=null;resetVoiceUI(p)};
+  a.play().catch(function(){});syncVoice();
+}
+function stopVoice(){
+  if(!playing)return;
+  try{playing.el.pause()}catch(e){}
+  var p=playing.path;playing=null;resetVoiceUI(p);
+}
+function resetVoiceUI(path){
+  [].slice.call(document.querySelectorAll(".vm")).forEach(function(v){
+    if(v.dataset.path!==path)return;
+    v.querySelector(".vp").textContent="▶";v.querySelector(".vs").value=0;
+    var m=null;Object.keys(msgs).forEach(function(k){(msgs[k]||[]).forEach(function(x){if(x.audio_path===path)m=x})});
+    v.querySelector(".vt").textContent=fmtT(m?m.audio_secs:0);
+  });
+}
+function syncVoice(){
+  if(!playing)return;
+  var a=playing.el,d=(a.duration&&isFinite(a.duration))?a.duration:0;
+  [].slice.call(document.querySelectorAll(".vm")).forEach(function(v){
+    if(v.dataset.path!==playing.path)return;
+    v.querySelector(".vp").textContent=a.paused?"▶":"⏸";
+    if(d)v.querySelector(".vs").value=Math.round(a.currentTime/d*1000);
+    v.querySelector(".vt").textContent=fmtT(a.currentTime);
+  });
+}
+function seekVoice(path,val){
+  if(playing&&playing.path===path&&playing.el.duration&&isFinite(playing.el.duration))playing.el.currentTime=playing.el.duration*val/1000;
+}
+async function hydrateAudio(root){
+  var els=[].slice.call(root.querySelectorAll("audio[data-path]"));
+  await Promise.all(els.map(async function(a){
+    var s=await sb.storage.from("voice").createSignedUrl(a.dataset.path,3600);
+    if(s.data&&s.data.signedUrl)a.src=s.data.signedUrl;
+  }));
+}
 /* ---- photos : copie locale ---- */
 function photoHtml(m){
   if(!m.image_path)return"";
@@ -1213,13 +1408,13 @@ function renderReports(d){
       +'<div class="rh"><b>'+esc(x.reason)+'</b><small>'+new Date(x.created_at).toLocaleString("fr-FR")+'</small></div>'
       +(x.details?'<p>'+esc(x.details)+'</p>':'')
       +'<p class="rm">Signalé par '+esc(x.reporter_name||"compte supprimé")+' · Personne signalée : '+esc(x.reported_name||"compte supprimé")+(x.reported_email?' ('+esc(x.reported_email)+')':'')+(x.reported_banned?' · SUSPENDUE':'')+'</p>'
-      +'<div class="quote">'+(has?(esc(x.message_body)||(x.message_image?"(photo)":"")):'Signalement d\'une personne, ou message déjà supprimé.')+'</div>'
-      +(x.message_image?'<img class="rimg ph" data-path="'+esc(x.message_image)+'" alt="Photo signalée">':'')+'<div class="ra2">'
+      +'<div class="quote">'+(has?(esc(x.message_body)||(x.message_image?"(photo)":x.message_audio?"(message vocal)":"")):'Signalement d\'une personne, ou message déjà supprimé.')+'</div>'
+      +(x.message_audio?'<audio class="radio" controls preload="none" data-path="'+esc(x.message_audio)+'"></audio>':'')+(x.message_image?'<img class="rimg ph" data-path="'+esc(x.message_image)+'" alt="Photo signalée">':'')+'<div class="ra2">'
       +(has?'<button data-a="del">Supprimer le message</button>':'')
       +(x.reported_id?'<button data-a="ban">'+(x.reported_banned?'Réactiver le compte':'Suspendre le compte')+'</button>':'')
       +'<button data-a="st">'+(x.status==="nouveau"?'Marquer traité':'Rouvrir')+'</button></div></div>';
   }).join("");
-  hydrate($("apl"),false);
+  hydrate($("apl"),false);hydrateAudio($("apl"));
 }
 $("adminb").onclick=openPanel;
 $("apc").onclick=function(){$("adp").close();refreshBadge()};
@@ -1246,7 +1441,7 @@ async function loadBlocks(){
 function openRa(uid,m,cid){
   raT={uid:uid,msg:m,cid:cid};
   var nm=names[uid]||"cette personne";
-  $("rap").textContent=m?("Message de "+nm+" : « "+(m.image_path?"📷 Photo":String(m.body)).slice(0,80)+" »"):("Personne : "+nm);
+  $("rap").textContent=m?("Message de "+nm+" : « "+(m.image_path?"📷 Photo":m.audio_path?"🎤 Message vocal":String(m.body)).slice(0,80)+" »"):("Personne : "+nm);
   $("rabl").textContent=blocked.indexOf(uid)>=0?"Débloquer cette personne":"Bloquer cette personne";
   $("rad").value="";say($("ram"),"");$("ra").showModal();
 }
