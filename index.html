@@ -18,7 +18,7 @@
 :root{--bg:#F6F0FB;--panel:#fff;--ink:#1E1033;--mute:#7A6C93;--line:#E5D9F2;--me:#7B2FF7;--me-ink:#fff;--them:#fff;--badge:#FF4D8D;--input:#F1EAF9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root{--bg:#150B26;--panel:#1E1236;--ink:#F3ECFF;--mute:#A596C4;--line:#33224F;--me:#9B5CFF;--them:#2A1A47;--input:#2A1A47}}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0}
+html,body{height:100%;margin:0;overscroll-behavior-y:none}
 body{background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 button:focus-visible,input:focus-visible{outline:2px solid var(--me);outline-offset:2px}
@@ -120,7 +120,7 @@ html,body{overflow-x:hidden}
 .b.hl{animation:hl 1.4s}
 @keyframes hl{0%,60%{outline:3px solid #FF4D8D}100%{outline:3px solid transparent}}
 .bar{gap:8px;padding:8px;min-width:0;align-items:flex-end}
-.pill{flex:1;min-width:0;display:flex;align-items:center;background:var(--input);border-radius:24px;padding:0 6px 0 14px}
+.pill{flex:1;min-width:0;display:flex;align-items:center;background:var(--input);border-radius:24px;padding:0 6px 0 6px}
 .pill input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:16px;padding:11px 4px;outline:0;border-radius:0}
 .pill button{flex:none;width:36px;height:36px;font-size:19px;border-radius:50%}
 .sendc{flex:none;width:44px;height:44px;border-radius:50%;background:var(--me);color:#fff;font-size:18px}
@@ -210,6 +210,14 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
 .pe{flex:none;color:var(--mute)}
 .aud{display:flex;gap:10px;align-items:center;padding:8px 0;font-size:15px}
 #pex{width:100%}
+.msgs,.list,.pane,.emp{overscroll-behavior:contain}
+.emp{display:flex;flex-wrap:wrap;gap:2px;padding:6px 8px;max-height:190px;overflow-y:auto;background:var(--panel);border-top:1px solid var(--line)}
+.emp button{width:42px;height:42px;font-size:24px;border-radius:10px}
+.fm{display:flex;align-items:center;gap:10px;min-width:210px;max-width:100%;cursor:pointer;padding:2px 0}
+.fi{flex:none;font-size:30px}
+.fnm2{flex:1;min-width:0;display:flex;flex-direction:column;overflow-wrap:anywhere}
+.fnm2 small{opacity:.7;font-size:12px}
+.fdl{flex:none;opacity:.7}
 </style>
 </head>
 <body>
@@ -264,7 +272,7 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
       <h3 class="fh">Compte</h3>
       <button type="button" class="prow" id="psb"><span class="pi">⚙</span><span class="pt2"><b>Paramètres du compte</b><small>Recherche, confirmations de lecture, déconnexion, suppression</small></span><span class="pe">›</span></button>
       <a href="confidentialite.html" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:14px;color:var(--me);font-size:14px">Confidentialité et conditions</a>
-      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 33</p>
+      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 34</p>
     </div>
     <button class="fab" id="new" aria-label="Nouvelle conversation">＋</button>
     </div>
@@ -533,7 +541,7 @@ function renderList(){
   });
   var h="";
   rows.forEach(function(c){
-    var l=c.last,p=l?((l.sender_id==me.id?"Vous : ":(c.group?(names[l.sender_id]||"Compte supprimé")+" : ":""))+(l.video_path?"🎥 Vidéo":l.image_path?"📷 Photo":l.audio_path?"🎤 Message vocal":l.body)):"Aucun message";
+    var l=c.last,p=l?((l.sender_id==me.id?"Vous : ":(c.group?(names[l.sender_id]||"Compte supprimé")+" : ":""))+(l.file_path?"📄 "+(l.file_name||"Fichier"):l.video_path?"🎥 Vidéo":l.image_path?"📷 Photo":l.audio_path?"🎤 Message vocal":l.body)):"Aucun message";
     if(l&&blocked.indexOf(l.sender_id)>=0)p="Message masqué";
     var u=c.unread>0;
     h+='<button class="row'+(cur===c.id?' on':'')+(u?' unr':'')+'" data-id="'+c.id+'">'+avatar(c)
@@ -587,7 +595,7 @@ function dayLabel(t){
   if(d.toDateString()===y.toDateString())return"Hier";
   return d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:d.getFullYear()===n.getFullYear()?undefined:"numeric"});
 }
-function snippet(m){return m.video_path?"🎥 Vidéo":m.image_path?"📷 Photo":m.audio_path?"🎤 Message vocal":String(m.body||"")}
+function snippet(m){return m.file_path?"📄 "+(m.file_name||"Fichier"):m.video_path?"🎥 Vidéo":m.image_path?"📷 Photo":m.audio_path?"🎤 Message vocal":String(m.body||"")}
 function quoteHtml(m){
   if(!m.reply_to)return"";
   var o=findMsg(m.reply_to);
@@ -615,12 +623,12 @@ function renderChat(){
     var mine=m.sender_id==me.id,first=m.sender_id!==lastSender;lastSender=m.sender_id;
     h+='<div class="b'+(mine?' me':'')+(first?' first':'')+(m.image_path&&!m.body&&!m.reply_to?' img':'')+'" data-id="'+m.id+'">'
       +(c.group&&!mine&&first?'<span class="who" style="color:'+COLORS[hash(names[m.sender_id]||"?")%COLORS.length]+'">'+esc(names[m.sender_id]||"Compte supprimé")+'</span>':'')
-      +quoteHtml(m)+photoHtml(m)+voiceHtml(m)+esc(m.body)+'<time>'+(m.edited_at?'modifié · ':'')+hm(m.created_at)+(mine?tickHtml(c,m):'')+'</time></div>';
+      +quoteHtml(m)+photoHtml(m)+voiceHtml(m)+fileHtml(m)+esc(m.body)+'<time>'+(m.edited_at?'modifié · ':'')+hm(m.created_at)+(mine?tickHtml(c,m):'')+'</time></div>';
   });
   h+='</div>';
   if(meBanned)h+='<div class="bar"><span style="color:#D6336C;font-size:14px">Ton compte est suspendu : tu ne peux plus envoyer de messages.</span></div>';
   else if(iBlocked)h+='<div class="bar" style="justify-content:space-between"><span style="color:var(--mute);font-size:14px">Tu as bloqué cette personne.</span><button class="send" id="unb" type="button">Débloquer</button></div>';
-  else h+='<div class="rp" id="rp" hidden></div><form class="bar" id="bar"><div class="pill"><input type="text" id="txt" placeholder="Message" autocomplete="off" aria-label="Message"><button type="button" id="pic" aria-label="Envoyer une photo">📷</button></div><input type="file" id="file" accept="image/*,video/*" hidden><input type="file" id="fcam" accept="image/*" capture="environment" hidden><button class="sendc" type="submit" id="sbtn" aria-label="Message vocal">🎤</button></form><div class="bar recbar" id="recbar" hidden></div>';
+  else h+='<div class="rp" id="rp" hidden></div><form class="bar" id="bar"><div class="pill"><button type="button" id="emo" aria-label="Émojis">😊</button><input type="text" id="txt" placeholder="Message" autocomplete="off" aria-label="Message"><button type="button" id="att" aria-label="Joindre un fichier">📎</button><button type="button" id="pic" aria-label="Caméra">📷</button></div><input type="file" id="file" accept="image/*,video/*" hidden><input type="file" id="fdoc" hidden><input type="file" id="fcam" accept="image/*" capture="environment" hidden><button class="sendc" type="submit" id="sbtn" aria-label="Message vocal">🎤</button></form><div class="bar recbar" id="recbar" hidden></div>';
   $("chat").innerHTML=h;renderedFor=c.id;
   if($("txt")){$("txt").value=keep;if(had)$("txt").focus();syncSend()}
   var box=$("msgs");box.scrollTop=atBottom?box.scrollHeight:oldTop;
@@ -629,6 +637,7 @@ function renderChat(){
     var q=e.target.closest(".q");if(q){if(q.dataset.id)jumpTo(q.dataset.id);return}
     var vp=e.target.closest(".vp");if(vp){var vm=vp.closest(".vm");toggleVoice(vm.dataset.path,vm);return}
     if(e.target.closest(".vs"))return;
+    var fm=e.target.closest(".fm");if(fm){downloadFile(fm.dataset.path,fm.dataset.name);return}
     var el=e.target.closest(".b");if(!el)return;
     var m=findMsg(el.dataset.id);if(!m)return;
     if(e.target.closest("img.ph,.vwrap")){openViewer(m);return}
@@ -642,7 +651,7 @@ function renderChat(){
     if(t.clientX-tx>70&&Math.abs(t.clientY-ty)<30){var m=findMsg(el.dataset.id);if(m)setReply(m)}
   },{passive:true});
   hydrate(box);
-  $("back").onclick=function(){cancelRec();stopVoice();cur=null;replyTo=null;leaveTyping();convs.forEach(function(x){x.divN=0});$("app").classList.remove("open");renderList();renderChat()};
+  $("back").onclick=function(){if(history.state&&history.state.fchat)history.back();else closeChat()};
   $("more").onclick=function(){
     var it=[];
     if(c.group){
@@ -663,9 +672,14 @@ function renderChat(){
   if($("pic")){
     $("pic").onclick=function(){sheet([
       {t:"📸 Prendre une photo",f:function(){$("fcam").click()}},
-      {t:"🎥 Filmer",f:function(){openCam(c)}},
-      {t:"🖼 Choisir dans la galerie",f:function(){$("file").click()}}
+      {t:"🎥 Filmer",f:function(){openCam(c)}}
     ])};
+    $("att").onclick=function(){sheet([
+      {t:"🖼 Galerie (photos et vidéos)",f:function(){$("file").click()}},
+      {t:"📄 Document",f:function(){$("fdoc").click()}}
+    ])};
+    $("emo").onclick=toggleEmoji;
+    $("fdoc").onchange=function(){var f=this.files[0];this.value="";if(f)sendFile(c,f)};
     $("file").onchange=function(){var f=this.files[0];this.value="";if(f)handlePicked(c,f)};
     $("fcam").onchange=function(){var f=this.files[0];this.value="";if(f)handlePicked(c,f)};
   }
@@ -749,7 +763,7 @@ function jumpTo(id){
   el.scrollIntoView({block:"center",behavior:"smooth"});
   el.classList.add("hl");setTimeout(function(){el.classList.remove("hl")},1400);
 }
-function canEdit(m){return m.sender_id===me.id&&!m.image_path&&!m.audio_path&&Date.now()-new Date(m.created_at).getTime()<EDIT_MS}
+function canEdit(m){return m.sender_id===me.id&&!m.image_path&&!m.audio_path&&!m.file_path&&Date.now()-new Date(m.created_at).getTime()<EDIT_MS}
 function sheet(items){
   sheetH=items.map(function(i){return i.f});
   $("mab").innerHTML=items.map(function(i,n){
@@ -767,8 +781,9 @@ function openActions(m){
   if(m.pending){sheet([{t:"✖ Annuler l'envoi",d:true,f:function(){cancelPending(m)}}]);return}
   var mine=m.sender_id===me.id,it=[{t:"↩ Répondre",f:function(){setReply(m)}}];
   if(m.image_path)it.push({t:m.video_path?"▶ Lire la vidéo":"🖼 Voir la photo",f:function(){openViewer(m)}});
-  else if(!m.audio_path)it.push({t:"⧉ Copier",f:function(){copyText(m.body)}});
-  if(mine&&!m.image_path&&!m.audio_path){
+  else if(!m.audio_path&&!m.file_path)it.push({t:"⧉ Copier",f:function(){copyText(m.body)}});
+  if(m.file_path)it.push({t:"⬇ Télécharger",f:function(){downloadFile(m.file_path,m.file_name)}});
+  if(mine&&!m.image_path&&!m.audio_path&&!m.file_path){
     if(canEdit(m))it.push({t:"✎ Modifier",f:function(){openEdit(m.id)}});
     else it.push({h:"Modification impossible : plus de 15 minutes."});
   }
@@ -783,6 +798,7 @@ async function delOwn(m){
   if(m.image_path)sb.storage.from("photos").remove([m.image_path]);
   if(m.audio_path)sb.storage.from("voice").remove([m.audio_path]);
   if(m.video_path)sb.storage.from("videos").remove([m.video_path]);
+  if(m.file_path)sb.storage.from("files").remove([m.file_path]);
   applyDelete(m.id);
 }
 function add(m){
@@ -795,7 +811,7 @@ function add(m){
 }
 async function open(id){
   if(cur!==id){cancelRec();stopVoice()}cur=id;replyTo=null;joinTyping(id);var c=convs.filter(function(x){return x.id===id})[0];convs.forEach(function(x){x.divN=0});var un0=c?c.unread:0;if(c){c.divN=un0;c.unread=0}
-  $("app").classList.add("open");renderList();
+  $("app").classList.add("open");if(!(history.state&&history.state.fchat))history.pushState({fchat:1},"");renderList();
   var data=null;
   if(!offlineMode){
     var r=await sb.from("messages").select("*").eq("conversation_id",id).order("created_at").limit(200);
@@ -1500,6 +1516,71 @@ async function viewProfile(uid){
   $("pvb").innerHTML=h;$("pv").showModal();
 }
 $("pvc").onclick=function(){$("pv").close()};
+/* ---- documents, émojis, retour Android ---- */
+var BLOCKED_EXT=["exe","apk","bat","cmd","com","scr","js","mjs","vbs","msi","jar","sh","ps1","html","htm","svg","php","dll","lnk","reg","app","dmg","iso"];
+function extOf(n){var m=/\.([A-Za-z0-9]{1,8})$/.exec(n||"");return m?m[1].toLowerCase():""}
+function fmtSize(b){return b>=1048576?(b/1048576).toFixed(1).replace(".",",")+" Mo":Math.max(1,Math.round(b/1024))+" Ko"}
+function fileIcon(e){
+  return /^pdf$/.test(e)?"📕":/^(doc|docx|odt|rtf|txt)$/.test(e)?"📘":/^(xls|xlsx|csv|ods)$/.test(e)?"📗":/^(ppt|pptx|odp)$/.test(e)?"📙":/^(zip|rar|7z)$/.test(e)?"🗜":/^(mp3|m4a|wav|ogg|aac)$/.test(e)?"🎵":"📄";
+}
+async function sendFile(c,f){
+  if(offlineMode){alert("Connexion internet nécessaire pour envoyer un fichier.");return}
+  var ext=extOf(f.name);
+  if(BLOCKED_EXT.indexOf(ext)>=0){alert("Ce type de fichier (."+ext+") n'est pas autorisé pour des raisons de sécurité.");return}
+  if(!f.size){alert("Ce fichier est vide.");return}
+  if(f.size>10*1024*1024){alert("Fichier trop lourd ("+fmtSize(f.size)+"). Maximum : 10 Mo.");return}
+  var att=$("att");if(att){att.textContent="⏳";att.disabled=true}
+  try{
+    var path=c.id+"/"+newId()+(ext?"."+ext:"");
+    var u=await sb.storage.from("files").upload(path,f,{contentType:f.type||"application/octet-stream"});
+    if(u.error)throw u.error;
+    var row={conversation_id:c.id,body:"",file_path:path,file_name:String(f.name||"fichier").slice(0,120),file_size:f.size};
+    if(replyTo&&replyTo.conversation_id===c.id)row.reply_to=replyTo.id;
+    var r=await sb.from("messages").insert(row).select().single();
+    if(r.error){await sb.storage.from("files").remove([path]);throw r.error}
+    replyTo=null;forceBottom=true;add(r.data);
+  }catch(e){
+    alert("Fichier non envoyé : "+(e.message||e));
+    if($("att")){$("att").textContent="📎";$("att").disabled=false}
+  }
+}
+function fileHtml(m){
+  if(!m.file_path)return "";
+  var e=extOf(m.file_name),nm=m.file_name||"fichier";
+  return '<div class="fm" data-path="'+esc(m.file_path)+'" data-name="'+esc(nm)+'"><span class="fi">'+fileIcon(e)+'</span><span class="fnm2"><b>'+esc(nm)+'</b><small>'+esc((e||"fichier").toUpperCase())+' · '+fmtSize(m.file_size||0)+'</small></span><span class="fdl">⬇</span></div>';
+}
+async function downloadFile(path,name){
+  if(offlineMode){alert("Connexion internet nécessaire pour télécharger ce fichier.");return}
+  var s=await sb.storage.from("files").createSignedUrl(path,300,{download:name||true});
+  if(s.error||!s.data){alert("Impossible de télécharger ce fichier.");return}
+  var a=document.createElement("a");a.href=s.data.signedUrl;a.download=name||"";a.rel="noopener";
+  document.body.appendChild(a);a.click();a.remove();
+}
+var EMO="😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 😉 😍 🥰 😘 😋 😛 😜 🤪 🤗 🤔 😐 😶 🙄 😏 😴 😌 😔 😷 🤒 🤕 🥵 🥶 😎 🤓 😕 😟 🙁 😮 😲 😳 🥺 😢 😭 😱 😞 😓 😩 😫 🥱 😤 😡 😠 💀 💩 🤡 👻 🙏 👍 👎 👌 ✌️ 🤞 🤟 👏 🙌 💪 👋 🤝 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 💕 💞 💓 💗 💖 🔥 ✨ ⭐ 🌟 🎉 🎊 🎁 🎂 🍕 🍔 🍟 ☕ 🍺 ⚽ 🏀 🎵 🎶 📷 📞 💬 ✅ ❌ ⚠️ ❓ ❗".split(" ");
+function toggleEmoji(){
+  var p=$("emp");if(p){p.remove();return}
+  var bar=$("bar");if(!bar)return;
+  p=document.createElement("div");p.id="emp";p.className="emp";
+  p.innerHTML=EMO.map(function(e){return '<button type="button" data-e="'+e+'">'+e+'</button>'}).join("");
+  bar.parentNode.insertBefore(p,bar);
+  p.onclick=function(ev){
+    var b=ev.target.closest("button[data-e]");if(!b)return;
+    var t=$("txt"),s=t.selectionStart==null?t.value.length:t.selectionStart,e2=t.selectionEnd==null?s:t.selectionEnd,em=b.dataset.e;
+    t.value=t.value.slice(0,s)+em+t.value.slice(e2);
+    var pos=s+em.length;t.setSelectionRange(pos,pos);syncSend();sendTyping();
+  };
+}
+function closeChat(){
+  cancelRec();stopVoice();cur=null;replyTo=null;leaveTyping();
+  convs.forEach(function(x){x.divN=0});
+  $("app").classList.remove("open");renderList();renderChat();
+}
+window.addEventListener("popstate",function(){
+  var od=document.querySelector("dialog[open]");
+  if(od){od.close();history.pushState(cur?{fchat:1}:(tab!=="chats"?{ftab:1}:{}),"");return}
+  if(cur){closeChat();return}
+  if(tab!=="chats")setTab("chats");
+});
 /* ---- photos : copie locale ---- */
 function photoHtml(m){
   if(!m.image_path)return"";
@@ -1575,11 +1656,12 @@ async function searchPeople(q){
 function setTabBadge(id,n){var b=$(id);if(!b)return;b.hidden=!n;b.textContent=n>99?"99+":n}
 var tab="chats";
 function setTab(t){
+  if(t!==tab&&t!=="chats"&&tab==="chats")history.pushState({ftab:1},"");
   tab=t;
   $("list").hidden=t!=="chats";$("fd").hidden=t!=="friends";$("pf2").hidden=t!=="profile";$("sbar").hidden=t!=="chats";$("new").hidden=t!=="chats";
   $("tabc").classList.toggle("on",t==="chats");$("frb").classList.toggle("on",t==="friends");$("acc").classList.toggle("on",t==="profile");
 }
-$("tabc").onclick=function(){setTab("chats")};
+$("tabc").onclick=function(){if(history.state&&history.state.ftab&&!cur)history.back();else setTab("chats")};
 async function openFriends(){
   setTab("friends");
   try{await loadFriends()}catch(e){}
@@ -1757,8 +1839,8 @@ function renderReports(d){
       +'<div class="rh"><b>'+esc(x.reason)+'</b><small>'+new Date(x.created_at).toLocaleString("fr-FR")+'</small></div>'
       +(x.details?'<p>'+esc(x.details)+'</p>':'')
       +'<p class="rm">Signalé par '+esc(x.reporter_name||"compte supprimé")+' · Personne signalée : '+esc(x.reported_name||"compte supprimé")+(x.reported_email?' ('+esc(x.reported_email)+')':'')+(x.reported_banned?' · SUSPENDUE':'')+'</p>'
-      +'<div class="quote">'+(has?(esc(x.message_body)||(x.message_image?"(photo)":x.message_audio?"(message vocal)":x.message_video?"(vidéo)":"")):'Signalement d\'une personne, ou message déjà supprimé.')+'</div>'
-      +(x.message_video?'<video class="radio" controls playsinline preload="none" data-vpath="'+esc(x.message_video)+'"></video>':'')+(x.message_audio?'<audio class="radio" controls preload="none" data-path="'+esc(x.message_audio)+'"></audio>':'')+(x.message_image?'<img class="rimg ph" data-path="'+esc(x.message_image)+'" alt="Photo signalée">':'')+'<div class="ra2">'
+      +'<div class="quote">'+(has?(esc(x.message_body)||(x.message_image?"(photo)":x.message_audio?"(message vocal)":x.message_video?"(vidéo)":x.message_file?"(fichier)":"")):'Signalement d\'une personne, ou message déjà supprimé.')+'</div>'
+      +(x.message_file?'<div class="quote">📄 '+esc(x.message_file_name||"fichier")+' <button type="button" data-a="dlf" data-p="'+esc(x.message_file)+'" data-n="'+esc(x.message_file_name||"fichier")+'">Télécharger</button></div>':'')+(x.message_video?'<video class="radio" controls playsinline preload="none" data-vpath="'+esc(x.message_video)+'"></video>':'')+(x.message_audio?'<audio class="radio" controls preload="none" data-path="'+esc(x.message_audio)+'"></audio>':'')+(x.message_image?'<img class="rimg ph" data-path="'+esc(x.message_image)+'" alt="Photo signalée">':'')+'<div class="ra2">'
       +(has?'<button data-a="del">Supprimer le message</button>':'')
       +(x.reported_id?'<button data-a="ban">'+(x.reported_banned?'Réactiver le compte':'Suspendre le compte')+'</button>':'')
       +'<button data-a="st">'+(x.status==="nouveau"?'Marquer traité':'Rouvrir')+'</button></div></div>';
@@ -1769,6 +1851,7 @@ $("adminb").onclick=openPanel;
 $("apc").onclick=function(){$("adp").close();refreshBadge()};
 $("apl").onclick=async function(e){
   var b=e.target.closest("button[data-a]");if(!b)return;
+  if(b.dataset.a==="dlf"){downloadFile(b.dataset.p,b.dataset.n);return}
   var card=b.closest(".rep"),a=b.dataset.a,r;
   if(a==="del"){
     if(!confirm("Supprimer ce message pour tout le monde ?"))return;
@@ -1790,7 +1873,7 @@ async function loadBlocks(){
 function openRa(uid,m,cid){
   raT={uid:uid,msg:m,cid:cid};
   var nm=names[uid]||"cette personne";
-  $("rap").textContent=m?("Message de "+nm+" : « "+(m.video_path?"🎥 Vidéo":m.image_path?"📷 Photo":m.audio_path?"🎤 Message vocal":String(m.body)).slice(0,80)+" »"):("Personne : "+nm);
+  $("rap").textContent=m?("Message de "+nm+" : « "+(m.file_path?"📄 "+(m.file_name||"Fichier"):m.video_path?"🎥 Vidéo":m.image_path?"📷 Photo":m.audio_path?"🎤 Message vocal":String(m.body)).slice(0,80)+" »"):("Personne : "+nm);
   $("rabl").textContent=blocked.indexOf(uid)>=0?"Débloquer cette personne":"Bloquer cette personne";
   $("rad").value="";say($("ram"),"");$("ra").showModal();
 }
