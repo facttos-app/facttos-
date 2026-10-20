@@ -218,6 +218,14 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
 .fnm2{flex:1;min-width:0;display:flex;flex-direction:column;overflow-wrap:anywhere}
 .fnm2 small{opacity:.7;font-size:12px}
 .fdl{flex:none;opacity:.7}
+.atabs{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto}
+.atabs button{flex:none;padding:7px 12px;border-radius:16px;border:1px solid var(--line);font-size:14px;color:var(--mute)}
+.atabs button.on{background:var(--input);color:var(--me);border-color:var(--me);font-weight:700}
+.stg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stc{background:var(--input);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:2px}
+.stc b{font-size:24px}
+.stc span{font-size:12px;color:var(--mute)}
+.urow{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 2px;border-bottom:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -273,7 +281,7 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
       <button type="button" class="prow" id="pfr"><span class="pi">👥</span><span class="pt2"><b>Gérer mes amis</b><small>Voir et retirer un ami</small></span><span class="pe">›</span></button>
       <button type="button" class="prow" id="psb"><span class="pi">⚙</span><span class="pt2"><b>Paramètres du compte</b><small>Recherche, confirmations de lecture, déconnexion, suppression</small></span><span class="pe">›</span></button>
       <a href="confidentialite.html" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:14px;color:var(--me);font-size:14px">Confidentialité et conditions</a>
-      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 35</p>
+      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 36</p>
     </div>
     <button class="fab" id="new" aria-label="Nouvelle conversation">＋</button>
     </div>
@@ -344,7 +352,8 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
 
 <dialog id="adp" style="width:min(560px,96vw)">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 id="apt" style="margin:0">Signalements</h2><span style="display:flex;gap:8px"><button class="icon-btn" id="stb" aria-label="Maintenance et annonces" style="width:auto;padding:0 12px;font-size:14px">Réglages</button><button class="icon-btn" id="apc" aria-label="Fermer">✕</button></span></div>
-  <div id="apl" style="max-height:70vh;overflow-y:auto"></div>
+  <div class="atabs" id="atabs"><button type="button" class="on" data-v="rep">Signalements</button><button type="button" data-v="stats">Statistiques</button><button type="button" data-v="users">Utilisateurs</button></div>
+  <div id="apl" style="max-height:66vh;overflow-y:auto"></div>
 </dialog>
 
 <dialog id="vrd" class="cam">
@@ -477,7 +486,7 @@ async function start(user,off){
   me=user;$("auth").hidden=true;$("app").hidden=false;
   $("who").textContent="Connecté : "+(user.user_metadata&&user.user_metadata.name||user.email);
   var cu0=await kvGet("user");if(!off&&cu0&&cu0.id!==user.id)await kvClear();
-  await loadOutbox();
+  await loadOutbox();touchPresence();
   if(off){offlineMode=true;await loadFromCache();renderChat();updateOfflineUI();return}
   try{
     await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();renderChat();listen();
@@ -1608,6 +1617,68 @@ $("fgl").onclick=async function(e){
   renderFriendMgr();
   if(tab==="friends")renderFriends();
 };
+/* ---- administration : statistiques et utilisateurs ---- */
+var apv="rep",uFilter="online";
+function touchPresence(){
+  if(offlineMode||document.hidden||!me)return;
+  sb.rpc("touch_presence").then(function(){},function(){});
+}
+setInterval(touchPresence,60000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)touchPresence()});
+function seenTxt(t){
+  if(!t)return "jamais vu";
+  var m=Math.round((Date.now()-new Date(t).getTime())/60000);
+  if(m<2)return "🟢 En ligne";
+  if(m<60)return "vu il y a "+m+" min";
+  if(m<1440)return "vu il y a "+Math.round(m/60)+" h";
+  return "vu le "+new Date(t).toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
+}
+async function loadStats(){
+  $("apt").textContent="Statistiques";
+  $("apl").innerHTML='<div class="empty">Chargement…</div>';
+  var r=await sb.rpc("admin_stats");
+  if(r.error){$("apl").innerHTML='<div class="empty">'+esc(r.error.message)+'</div>';return}
+  var d=r.data||{};
+  var cards=[["Inscrits",d.total],["En ligne maintenant",d.online_now],["Connectés aujourd'hui",d.active_today],["Connectés sur 7 jours",d.active_7d],["Connectés sur 30 jours",d.active_30d],["Nouveaux aujourd'hui",d.new_today],["Nouveaux sur 7 jours",d.new_7d],["Nouveaux sur 30 jours",d.new_30d],["Comptes suspendus",d.banned],["Messages aujourd'hui",d.messages_today],["Conversations",d.conversations],["Groupes",d.groups]];
+  $("apl").innerHTML='<div class="stg">'+cards.map(function(c){return '<div class="stc"><b>'+(c[1]==null?"—":c[1])+'</b><span>'+c[0]+'</span></div>'}).join("")+'</div><p class="mute" style="margin-top:10px">« En ligne » : vu dans les 2 dernières minutes. « Connectés » : au moins une visite sur la période (jours comptés à l\'heure du Bénin). Les visites sont comptées depuis l\'activation de cette fonction.</p>';
+}
+async function loadUsers(){
+  $("apt").textContent="Utilisateurs";
+  var r=await sb.rpc("admin_users",{flt:uFilter});
+  if(r.error){$("apl").innerHTML='<div class="empty">'+esc(r.error.message)+'</div>';return}
+  var d=r.data||[];
+  var chips=[["online","En ligne"],["today","Aujourd'hui"],["7d","7 jours"],["all","Tous"]].map(function(x){return '<button type="button" class="fc'+(uFilter===x[0]?' on':'')+'" data-uf="'+x[0]+'">'+x[1]+'</button>'}).join("");
+  $("apl").innerHTML='<div class="fchips" style="padding:0 0 8px">'+chips+'</div><p class="mute" style="margin:0 0 6px">'+d.length+' personne'+(d.length>1?'s':'')+(d.length>=300?' (300 premières)':'')+'</p>'+
+    (d.length?d.map(function(u){
+      return '<button type="button" class="urow" data-u="'+u.id+'" data-b="'+(u.banned?1:0)+'" data-n="'+esc(u.name||"")+'"><span class="fn">'+avatarFor(null,u.name||"?"," sm")+'<span class="fnm"><b>'+esc(u.name||"Sans nom")+(u.banned?" · SUSPENDU":"")+'</b><br><small class="mute">'+esc(u.email||"")+'</small></span></span><span class="mute" style="flex:none;text-align:right">'+seenTxt(u.last_seen_at)+'<br><small>inscrit le '+new Date(u.created_at).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})+'</small></span></button>';
+    }).join(""):'<div class="empty">Personne pour ce filtre.</div>');
+}
+async function openPanel(){
+  if(!$("adp").open)$("adp").showModal();
+  if(apv==="stats"){loadStats();return}
+  if(apv==="users"){loadUsers();return}
+  try{renderReports(await fetchReports())}catch(e){$("apl").innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+$("atabs").onclick=function(e){
+  var b=e.target.closest("button[data-v]");if(!b)return;
+  apv=b.dataset.v;
+  [].slice.call(this.querySelectorAll("button")).forEach(function(x){x.classList.toggle("on",x===b)});
+  openPanel();
+};
+$("apl").addEventListener("click",function(e){
+  var f=e.target.closest("button[data-uf]");
+  if(f){uFilter=f.dataset.uf;loadUsers();return}
+  var b=e.target.closest("button.urow");
+  if(b){
+    var banned=b.dataset.b==="1",uid=b.dataset.u;
+    sheet([{t:banned?"✅ Réactiver ce compte":"🚫 Suspendre ce compte",d:!banned,f:async function(){
+      if(!confirm((banned?"Réactiver":"Suspendre")+" le compte de "+(b.dataset.n||"cette personne")+" ?"))return;
+      var r=await sb.rpc("admin_set_ban",{uid:uid,flag:!banned});
+      if(r.error){alert(r.error.message);return}
+      loadUsers();
+    }}]);
+  }
+});
 /* ---- photos : copie locale ---- */
 function photoHtml(m){
   if(!m.image_path)return"";
@@ -1852,10 +1923,6 @@ async function loadMe(){
 async function fetchReports(){var r=await sb.rpc("admin_reports");if(r.error)throw r.error;return r.data||[]}
 function setBadge(d){var n=d.filter(function(x){return x.status==="nouveau"}).length;setTabBadge("tba",n);return n}
 async function refreshBadge(){try{setBadge(await fetchReports())}catch(e){}}
-async function openPanel(){
-  if(!$("adp").open)$("adp").showModal();
-  try{renderReports(await fetchReports())}catch(e){$("apl").innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
-}
 function renderReports(d){
   var n=setBadge(d);
   $("apt").textContent="Signalements ("+n+" nouveau"+(n>1?"x":"")+")";
