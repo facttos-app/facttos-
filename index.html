@@ -226,6 +226,42 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
 .stc b{font-size:24px}
 .stc span{font-size:12px;color:var(--mute)}
 .urow{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 2px;border-bottom:1px solid var(--line)}
+.tab{font-size:11px;padding:8px 2px 6px}
+.tab .ti{font-size:20px;padding:3px 10px}
+.srow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.sav{flex:none;padding:3px;border-radius:50%;border:3px solid transparent;display:inline-block}
+.sav.ring{border-color:var(--me)}
+.sav.ring.seen{border-color:var(--line)}
+.sav .av{width:46px;height:46px}
+dialog.stdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:#000;overflow:hidden}
+#scb,#svc{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+#scb{padding:76px 12px 150px}
+#scb textarea{width:100%;height:100%;background:transparent;border:0;outline:0;resize:none;color:#fff;font:inherit;font-size:26px;font-weight:700;text-align:center;padding-top:18vh}
+#scb textarea::placeholder{color:rgba(255,255,255,.6)}
+#scb img{max-width:100%;max-height:100%;object-fit:contain}
+#scb input{position:absolute;left:16px;right:16px;bottom:140px;background:rgba(0,0,0,.55);color:#fff;border:0;border-radius:20px;padding:11px 14px;font:inherit;font-size:16px;outline:0}
+.sctop{position:absolute;left:0;right:0;top:0;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 12px}
+.sctop button,.svbtns button{width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:19px}
+.scbot{position:absolute;left:0;right:0;bottom:0;padding:12px 14px calc(16px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.6));display:flex;flex-direction:column;gap:10px}
+.scc{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;min-height:10px}
+.sw{width:30px;height:30px;border-radius:50%;border:3px solid rgba(255,255,255,0)}
+.sw.on{border-color:#fff}
+.scrow{display:flex;gap:10px;align-items:center}
+.scrow select{flex:1;min-width:0;background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:20px;padding:11px 12px;font:inherit;font-size:15px}
+.scrow select option{color:#000}
+.svp{position:absolute;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top,0px));display:flex;gap:4px;z-index:2}
+.pb{flex:1;height:3px;background:rgba(255,255,255,.35);border-radius:2px;overflow:hidden}
+.pb i{display:block;height:100%;width:0;background:#fff}
+.pb i.done{width:100%}
+.pb i.run{animation:pbar 5.5s linear forwards}
+@keyframes pbar{from{width:0}to{width:100%}}
+.svh{position:absolute;top:calc(20px + env(safe-area-inset-top,0px));left:10px;right:110px;display:flex;align-items:center;gap:10px;color:#fff;z-index:2;pointer-events:none}
+.svn{display:flex;flex-direction:column;min-width:0}
+.svn small{opacity:.8}
+.svbtns{position:absolute;top:calc(18px + env(safe-area-inset-top,0px));right:10px;display:flex;gap:8px;z-index:3}
+.svt{color:#fff;font-size:26px;font-weight:700;text-align:center;padding:24px;overflow-wrap:anywhere}
+#svc img{max-width:100%;max-height:100%;object-fit:contain}
+.svcap{position:absolute;left:0;right:0;bottom:0;text-align:center;color:#fff;padding:36px 16px calc(24px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.65));overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -275,18 +311,22 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
       <div id="fres"></div>
       <div id="flist"></div>
     </div>
+    <div class="pane" id="sp" hidden></div>
+    <div class="pane" id="cp" hidden></div>
     <div class="pane" id="pf2" hidden>
       <div id="pfl"></div>
       <h3 class="fh">Compte</h3>
       <button type="button" class="prow" id="pfr"><span class="pi">👥</span><span class="pt2"><b>Gérer mes amis</b><small>Voir et retirer un ami</small></span><span class="pe">›</span></button>
       <button type="button" class="prow" id="psb"><span class="pi">⚙</span><span class="pt2"><b>Paramètres du compte</b><small>Recherche, confirmations de lecture, déconnexion, suppression</small></span><span class="pe">›</span></button>
       <a href="confidentialite.html" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:14px;color:var(--me);font-size:14px">Confidentialité et conditions</a>
-      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 36</p>
+      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 37</p>
     </div>
     <button class="fab" id="new" aria-label="Nouvelle conversation">＋</button>
     </div>
     <nav class="tabs" id="tabs">
       <button class="tab on" id="tabc" type="button"><span class="ti">💬</span><span class="tl">Discussions</span><b class="tb" id="tbc" hidden></b></button>
+      <button class="tab" id="tact" type="button"><span class="ti">📰</span><span class="tl">Actu</span><b class="tb" id="tbn" hidden></b></button>
+      <button class="tab" id="tcom" type="button"><span class="ti">🏘</span><span class="tl">Communauté</span></button>
       <button class="tab" id="frb" type="button"><span class="ti">👥</span><span class="tl">Amis</span><b class="tb" id="tbf" hidden></b></button>
       <button class="tab" id="adminb" type="button" hidden><span class="ti">🛡</span><span class="tl">Admin</span><b class="tb" id="tba" hidden></b></button>
       <button class="tab" id="acc" type="button"><span class="ti">👤</span><span class="tl">Profil</span></button>
@@ -294,6 +334,35 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
   </aside>
   <main class="chat" id="chat"></main>
 </div>
+
+<input type="file" id="fst" accept="image/*" hidden>
+
+<dialog id="fm2">
+  <form id="fm2f">
+    <h2 id="fm2t" style="margin-top:0"></h2>
+    <div id="fm2b"></div>
+    <p class="msg" id="fm2m" hidden></p>
+    <div class="act"><button type="button" id="fm2c" style="padding:10px 14px">Annuler</button><button class="send" type="submit" id="fm2s">OK</button></div>
+  </form>
+</dialog>
+
+<dialog id="cm" style="width:min(520px,96vw)">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="cmt" style="margin:0;overflow-wrap:anywhere"></h2><button class="icon-btn" id="cmx" aria-label="Fermer">✕</button></div>
+  <div id="cmb" style="max-height:70vh;overflow-y:auto;margin-top:8px"></div>
+</dialog>
+
+<dialog id="sc" class="stdlg">
+  <div id="scb"></div>
+  <div class="sctop"><button type="button" id="scx" aria-label="Fermer">✕</button></div>
+  <div class="scbot"><div id="scc" class="scc"></div><div class="scrow"><select id="sca"><option value="all">🌍 Tout le monde</option><option value="friends">👥 Mes amis</option></select><button type="button" id="scp" class="send">Publier</button></div></div>
+</dialog>
+
+<dialog id="sv" class="stdlg">
+  <div id="svc"></div>
+  <div class="svp" id="svp"></div>
+  <div class="svh" id="svh"></div>
+  <div class="svbtns"><button type="button" id="svm" aria-label="Options">⋮</button><button type="button" id="svx" aria-label="Fermer">✕</button></div>
+</dialog>
 
 <dialog id="fg" style="width:min(520px,96vw)">
   <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Mes amis</h2><button class="icon-btn" id="fgc" aria-label="Fermer">✕</button></div>
@@ -486,7 +555,7 @@ async function start(user,off){
   me=user;$("auth").hidden=true;$("app").hidden=false;
   $("who").textContent="Connecté : "+(user.user_metadata&&user.user_metadata.name||user.email);
   var cu0=await kvGet("user");if(!off&&cu0&&cu0.id!==user.id)await kvClear();
-  await loadOutbox();touchPresence();
+  await loadOutbox();touchPresence();initActu();
   if(off){offlineMode=true;await loadFromCache();renderChat();updateOfflineUI();return}
   try{
     await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();renderChat();listen();
@@ -1461,7 +1530,7 @@ async function loadMyProfile(){
 }
 function renderProfile(){
   var nm=names[me.id]||(me.user_metadata&&me.user_metadata.name)||me.email||"";
-  var h='<div class="pfh">'+avatarFor(me.id,nm," lg")+'<div class="pfn"><b>'+esc(nm)+'</b><span class="mute">'+esc(me.email||"")+'</span><button type="button" class="chipbtn" id="pfph">Changer la photo</button></div></div>';
+  var h='<div class="pfh">'+avatarFor(me.id,nm," lg")+'<div class="pfn"><b>'+esc(nm)+'</b><span class="mute">'+esc(me.email||"")+'</span><button type="button" class="chipbtn" id="pfph">Changer la photo</button><button type="button" class="chipbtn" id="pfnm">Modifier mon nom</button></div></div>';
   PF.forEach(function(g){
     h+='<h3 class="fh">'+esc(g.g)+'</h3>';
     g.f.forEach(function(f){
@@ -1470,7 +1539,7 @@ function renderProfile(){
     });
   });
   $("pfl").innerHTML=h;
-  $("pfph").onclick=function(){$("avf").click()};
+  $("pfph").onclick=function(){$("avf").click()};$("pfnm").onclick=editName;
 }
 async function openProfile(){
   setTab("profile");
@@ -1679,6 +1748,365 @@ $("apl").addEventListener("click",function(e){
     }}]);
   }
 });
+/* ---- formulaire générique, modification du nom ---- */
+function askForm(title,body,ok,handler){
+  $("fm2t").textContent=title;$("fm2b").innerHTML=body;$("fm2s").textContent=ok||"OK";say($("fm2m"),"");
+  $("fm2f").onsubmit=async function(e){
+    e.preventDefault();$("fm2s").disabled=true;
+    try{var err=await handler();if(err)say($("fm2m"),err);else $("fm2").close()}
+    catch(x){say($("fm2m"),x.message||String(x))}
+    $("fm2s").disabled=false;
+  };
+  $("fm2").showModal();
+}
+$("fm2c").onclick=function(){$("fm2").close()};
+function editName(){
+  if(offlineMode){alert("Connexion internet nécessaire pour modifier ton nom.");return}
+  var full=names[me.id]||"",i=full.indexOf(" "),fn=i<0?full:full.slice(0,i),ln=i<0?"":full.slice(i+1);
+  askForm("Modifier mon nom",'<input class="field" id="nfn" maxlength="30" placeholder="Prénom" value="'+esc(fn)+'" autocomplete="given-name" required><input class="field" id="nln" maxlength="30" placeholder="Nom" value="'+esc(ln)+'" autocomplete="family-name" required>',"Enregistrer",async function(){
+    var n=($("nfn").value.trim()+" "+$("nln").value.trim()).replace(/\s+/g," ").trim();
+    var r=await sb.rpc("set_my_name",{n:n});
+    if(r.error)return r.error.message;
+    names[me.id]=n;saveCache();renderProfile();renderList();renderChat();
+  });
+}
+
+/* ---- Actu : statuts ---- */
+var stFeed=[],stSeen={},stView=null,stTimer=null,scS=null,stUrls={};
+var stBg=["#7B2FF7","#E8387A","#0EA5A4","#F59E0B","#2563EB","#16A34A","#EA580C","#1E1033"];
+function agoTxt(t){
+  var m=Math.round((Date.now()-new Date(t).getTime())/60000);
+  if(m<1)return "à l'instant";
+  if(m<60)return "il y a "+m+" min";
+  if(m<1440)return "il y a "+Math.round(m/60)+" h";
+  return "hier";
+}
+async function loadSeen(){stSeen=(await kvGet("stseen"))||{}}
+function markSeen(id){if(!stSeen[id]){stSeen[id]=1;kvSet("stseen",stSeen)}}
+async function signStatus(p){
+  var c=stUrls[p];if(c&&c.exp>Date.now())return c.url;
+  var s=await sb.storage.from("status").createSignedUrl(p,3600);
+  if(s.error||!s.data)return "";
+  stUrls[p]={url:s.data.signedUrl,exp:Date.now()+3300e3};return stUrls[p].url;
+}
+async function loadFeed(){
+  if(offlineMode||!me)return false;
+  var r=await sb.from("statuses").select("id,user_id,kind,body,bg,image_path,audience,created_at").order("created_at");
+  if(r.error)return false;
+  stFeed=r.data||[];
+  var ids=[];stFeed.forEach(function(x){if(ids.indexOf(x.user_id)<0)ids.push(x.user_id)});
+  var need=ids.filter(function(u){return !names[u]});
+  if(need.length){var p=await sb.from("profiles").select("id,name").in("id",need);(p.data||[]).forEach(function(x){names[x.id]=x.name})}
+  await loadAvatars(ids);
+  updateActuBadge();
+  return true;
+}
+function stGroups(){
+  var g={};stFeed.forEach(function(x){(g[x.user_id]=g[x.user_id]||[]).push(x)});
+  return Object.keys(g).map(function(u){
+    var l=g[u];return{uid:u,items:l,last:l[l.length-1],unseen:l.filter(function(x){return !stSeen[x.id]}).length};
+  });
+}
+function updateActuBadge(){
+  setTabBadge("tbn",stGroups().filter(function(g){return g.uid!==me.id&&g.unseen>0}).length);
+}
+function renderActu(){
+  var gs=stGroups(),mine=gs.filter(function(g){return g.uid===me.id})[0];
+  var others=gs.filter(function(g){return g.uid!==me.id}).sort(function(a,b){
+    if(!!a.unseen!==!!b.unseen)return a.unseen?-1:1;
+    return new Date(b.last.created_at)-new Date(a.last.created_at);
+  });
+  var h='<div class="srow" data-s="mine"><span class="sav'+(mine?' ring':'')+'">'+avatarFor(me.id,names[me.id]||"?","")+'</span><span class="pt2"><b>Mon statut</b><small>'+(mine?mine.items.length+" statut"+(mine.items.length>1?"s":"")+" · "+agoTxt(mine.last.created_at):"Appuie sur Ajouter pour publier")+'</small></span><button type="button" class="chipbtn" id="stadd">＋ Ajouter</button></div>';
+  h+='<h3 class="fh">Mises à jour récentes</h3>';
+  h+=others.length?others.map(function(g){
+    return '<button type="button" class="srow" data-u="'+g.uid+'"><span class="sav ring'+(g.unseen?'':' seen')+'">'+avatarFor(g.uid,names[g.uid]||"?","")+'</span><span class="pt2"><b>'+esc(names[g.uid]||"Utilisateur")+'</b><small>'+agoTxt(g.last.created_at)+'</small></span></button>';
+  }).join(""):'<p class="mute">Aucune mise à jour pour le moment.</p>';
+  h+='<p class="mute" style="margin:14px 0 24px">Les statuts disparaissent après 24 h. Ils sont visibles par tous les utilisateurs, ou seulement par tes amis si tu le choisis en publiant.</p>';
+  $("sp").innerHTML=h;
+}
+async function openActu(){
+  setTab("actu");
+  if(offlineMode){$("sp").innerHTML='<p class="mute">Connexion internet nécessaire pour voir les statuts.</p>';return}
+  renderActu();
+  if(await loadFeed())renderActu();
+}
+$("tact").onclick=openActu;
+$("sp").onclick=function(e){
+  if(e.target.closest("#stadd")){statusSheet();return}
+  var m=e.target.closest(".srow[data-s=mine]");
+  if(m){if(stFeed.some(function(x){return x.user_id===me.id}))openStory(me.id,0);else statusSheet();return}
+  var o=e.target.closest(".srow[data-u]");if(o)openStory(o.dataset.u);
+};
+function statusSheet(){
+  sheet([{t:"✍ Statut texte",f:function(){openComposer("text")}},{t:"🖼 Statut photo",f:function(){$("fst").click()}}]);
+}
+$("fst").onchange=async function(){
+  var f=this.files[0];this.value="";if(!f)return;
+  if(!/^image\//.test(f.type)){alert("Choisis une photo.");return}
+  try{openComposer("photo",await shrinkImage(f,1080,.75))}catch(e){alert("Photo non lisible : "+(e.message||e))}
+};
+function openComposer(mode,blob){
+  if(offlineMode){alert("Connexion internet nécessaire pour publier un statut.");return}
+  scS={mode:mode,bg:0,blob:blob||null,url:blob?URL.createObjectURL(blob):""};
+  drawComposer();$("sc").showModal();
+}
+function drawComposer(){
+  var s=scS,box=$("scb");
+  box.style.background=s.mode==="text"?stBg[s.bg]:"#000";
+  box.innerHTML=s.mode==="text"?'<textarea id="sct" maxlength="300" placeholder="Écris ton statut…"></textarea>':'<img src="'+s.url+'" alt="Aperçu"><input id="sct" maxlength="150" placeholder="Ajouter une légende…" autocomplete="off">';
+  $("scc").innerHTML=s.mode==="text"?stBg.map(function(c,i){return '<button type="button" class="sw'+(i===s.bg?' on':'')+'" data-i="'+i+'" style="background:'+c+'" aria-label="Couleur"></button>'}).join(""):"";
+}
+$("scc").onclick=function(e){
+  var b=e.target.closest("button[data-i]");if(!b||!scS)return;
+  var t=$("sct").value;scS.bg=+b.dataset.i;drawComposer();$("sct").value=t;
+};
+function closeComposer(){
+  if(scS&&scS.url)URL.revokeObjectURL(scS.url);
+  scS=null;if($("sc").open)$("sc").close();
+}
+$("scx").onclick=closeComposer;
+$("sc").addEventListener("cancel",function(e){e.preventDefault();closeComposer()});
+$("scp").onclick=async function(){
+  var s=scS;if(!s)return;
+  var txt=($("sct").value||"").trim();
+  if(s.mode==="text"&&!txt){alert("Écris quelque chose pour ton statut.");return}
+  $("scp").disabled=true;$("scp").textContent="⏳";
+  try{
+    var row={kind:s.mode,body:txt||null,bg:s.bg,audience:$("sca").value};
+    if(s.mode==="photo"){
+      var path=me.id+"/"+newId()+".jpg";
+      var u=await sb.storage.from("status").upload(path,s.blob,{contentType:"image/jpeg"});
+      if(u.error)throw u.error;
+      row.image_path=path;
+    }
+    var r=await sb.from("statuses").insert(row);
+    if(r.error){if(row.image_path)await sb.storage.from("status").remove([row.image_path]);throw r.error}
+    closeComposer();await loadFeed();renderActu();
+  }catch(e){alert("Statut non publié : "+(e.message||e))}
+  $("scp").disabled=false;$("scp").textContent="Publier";
+};
+function openStory(uid,startAt){
+  var items=stFeed.filter(function(x){return x.user_id===uid});
+  if(!items.length)return;
+  var first=startAt;
+  if(first==null){first=0;for(var k=0;k<items.length;k++){if(!stSeen[items[k].id]){first=k;break}}}
+  stView={uid:uid,items:items,i:first};
+  showStory();if(!$("sv").open)$("sv").showModal();
+}
+function startStoryTimer(){
+  clearTimeout(stTimer);
+  var v=stView;if(!v)return;
+  var bars=$("svp").children;
+  for(var k=0;k<bars.length;k++){bars[k].firstChild.className=k<v.i?"done":(k===v.i?"run":"")}
+  stTimer=setTimeout(nextStory,5500);
+}
+async function showStory(){
+  clearTimeout(stTimer);
+  var v=stView;if(!v)return;
+  var s=v.items[v.i];markSeen(s.id);
+  $("svp").innerHTML=v.items.map(function(){return '<span class="pb"><i></i></span>'}).join("");
+  var nm=v.uid===me.id?"Mon statut":(names[v.uid]||"Utilisateur");
+  $("svh").innerHTML=avatarFor(v.uid,names[v.uid]||"?"," sm")+'<span class="svn"><b>'+esc(nm)+'</b><small>'+agoTxt(s.created_at)+'</small></span>';
+  var c=$("svc");
+  if(s.kind==="text"){
+    c.style.background=stBg[(s.bg||0)%stBg.length];
+    c.innerHTML='<div class="svt">'+esc(s.body||"")+'</div>';
+    startStoryTimer();
+  }else{
+    c.style.background="#000";
+    c.innerHTML='<img alt="Statut" id="svi"><div class="svcap">'+esc(s.body||"")+'</div>';
+    var u=await signStatus(s.image_path);
+    if(stView!==v||v.items[v.i]!==s)return;
+    var im=$("svi");
+    if(u){im.onload=startStoryTimer;im.onerror=startStoryTimer;im.src=u}else startStoryTimer();
+  }
+  updateActuBadge();
+}
+function nextStory(){
+  var v=stView;if(!v)return;
+  if(v.i+1>=v.items.length){closeStory();return}
+  v.i++;showStory();
+}
+function prevStory(){var v=stView;if(!v)return;if(v.i>0)v.i--;showStory()}
+function closeStory(){
+  clearTimeout(stTimer);stView=null;
+  if($("sv").open)$("sv").close();
+  if(tab==="actu")renderActu();
+  updateActuBadge();
+}
+$("sv").addEventListener("close",function(){clearTimeout(stTimer);stView=null;if(tab==="actu")renderActu()});
+$("svx").onclick=closeStory;
+$("svc").onclick=function(e){
+  var r=this.getBoundingClientRect();
+  if(e.clientX-r.left<r.width*.33)prevStory();else nextStory();
+};
+$("svm").onclick=function(){
+  var v=stView;if(!v)return;
+  clearTimeout(stTimer);
+  var s=v.items[v.i],uid=v.uid;
+  if(uid===me.id){
+    sheet([{t:"🗑 Supprimer ce statut",d:true,f:async function(){
+      if(offlineMode){alert("Connexion internet nécessaire.");return}
+      if(!confirm("Supprimer ce statut ?"))return;
+      var r=await sb.from("statuses").delete().eq("id",s.id).select();
+      if(r.error||!r.data||!r.data.length){alert("Suppression impossible.");startStoryTimer();return}
+      if(s.image_path)sb.storage.from("status").remove([s.image_path]);
+      stFeed=stFeed.filter(function(x){return x.id!==s.id});
+      v.items=v.items.filter(function(x){return x.id!==s.id});
+      if(!v.items.length){closeStory();return}
+      if(v.i>=v.items.length)v.i=v.items.length-1;
+      showStory();
+    }}]);
+  }else{
+    sheet([{t:"⚑ Signaler ou bloquer",d:true,f:function(){
+      closeStory();openRa(uid,null,null);
+      if(raT){raT.status=s;$("rap").textContent="Statut de "+(names[uid]||"cette personne")}
+    }}]);
+  }
+};
+$("ma").addEventListener("close",function(){if($("sv").open&&stView)startStoryTimer()});
+function initActu(){
+  loadSeen().then(function(){return loadFeed()}).catch(function(){});
+  sb.rpc("purge_my_expired").then(function(r){var p=r.data||[];if(p.length)sb.storage.from("status").remove(p)},function(){});
+}
+setInterval(function(){
+  if(!document.hidden&&!offlineMode&&me)loadFeed().then(function(ok){if(ok&&tab==="actu")renderActu()}).catch(function(){});
+},120000);
+async function hydrateStatusImgs(root){
+  var els=[].slice.call(root.querySelectorAll("img[data-spath]"));
+  await Promise.all(els.map(async function(i){var u=await signStatus(i.dataset.spath);if(u)i.src=u}));
+}
+
+/* ---- Communauté ---- */
+var comms=[],curCom=null;
+async function loadComms(){
+  var r=await sb.rpc("my_communities");
+  if(r.error)throw r.error;
+  comms=r.data||[];
+}
+function renderComms(){
+  var h='<button type="button" class="prow" id="cnew"><span class="pi">➕</span><span class="pt2"><b>Nouvelle communauté</b><small>Regroupe plusieurs groupes au même endroit</small></span></button>';
+  h+=comms.length?comms.map(function(c){
+    return '<button type="button" class="prow" data-c="'+c.id+'"><span class="pi">🏘</span><span class="pt2"><b>'+esc(c.name)+'</b><small>'+c.groups+' groupe'+(c.groups>1?'s':'')+' · '+c.members+' membre'+(c.members>1?'s':'')+(c.role==="admin"?' · Administrateur':'')+'</small></span><span class="pe">›</span></button>';
+  }).join(""):'<p class="mute" style="margin-top:14px">Tu ne fais partie d\'aucune communauté pour le moment.</p>';
+  $("cp").innerHTML=h;
+}
+async function openCom(){
+  setTab("com");
+  if(offlineMode){$("cp").innerHTML='<p class="mute">Connexion internet nécessaire pour les communautés.</p>';return}
+  renderComms();
+  try{await loadComms();renderComms()}catch(e){$("cp").innerHTML='<p class="msg">'+esc(e.message||String(e))+'</p>'}
+}
+$("tcom").onclick=openCom;
+$("cp").onclick=function(e){
+  if(e.target.closest("#cnew")){newCommunity();return}
+  var b=e.target.closest("button[data-c]");if(b)openCommunity(b.dataset.c);
+};
+function newCommunity(){
+  if(offlineMode){alert("Connexion internet nécessaire.");return}
+  askForm("Nouvelle communauté",'<input class="field" id="cnn" maxlength="60" placeholder="Nom de la communauté" required autocomplete="off"><textarea class="field" id="cnd" rows="3" maxlength="300" placeholder="Description (facultatif)"></textarea>',"Créer",async function(){
+    var r=await sb.rpc("create_community",{n:$("cnn").value,d:$("cnd").value});
+    if(r.error)return r.error.message;
+    var id=r.data;await loadComms();renderComms();
+    setTimeout(function(){openCommunity(id)},0);
+  });
+}
+async function openCommunity(id){
+  var c=comms.filter(function(x){return x.id===id})[0];if(!c)return;
+  curCom=c;$("cmt").textContent=c.name;
+  $("cmb").innerHTML='<div class="empty">Chargement…</div>';
+  if(!$("cm").open)$("cm").showModal();
+  await refreshCommunity();
+}
+async function refreshCommunity(){
+  var c=curCom;if(!c)return;
+  var r=await sb.rpc("community_groups",{cid:c.id});
+  if(r.error){$("cmb").innerHTML='<p class="msg">'+esc(r.error.message)+'</p>';return}
+  var g=r.data||[],adm=c.role==="admin";
+  var h=c.description?'<p style="margin:0 0 6px;overflow-wrap:anywhere">'+esc(c.description)+'</p>':'';
+  h+='<h3 class="fh">Groupes ('+g.length+')</h3>';
+  h+=g.length?g.map(function(x){
+    return frow(x.name||"Groupe",x.joined?'<button data-a="cgo" data-g="'+x.conv_id+'">Ouvrir</button>':'<button data-a="cjoin" data-g="'+x.conv_id+'">Rejoindre</button>',null);
+  }).join(""):'<p class="mute">Aucun groupe pour le moment.</p>';
+  h+='<h3 class="fh">Actions</h3>';
+  if(adm){
+    h+='<button type="button" class="prow" data-a="cmk"><span class="pi">➕</span><span class="pt2"><b>Créer un groupe</b></span></button>';
+    h+='<button type="button" class="prow" data-a="cat"><span class="pi">🔗</span><span class="pt2"><b>Ajouter un groupe existant</b><small>Un groupe que tu as créé</small></span></button>';
+    h+='<button type="button" class="prow" data-a="cadd"><span class="pi">👥</span><span class="pt2"><b>Ajouter des membres</b><small>Choisis parmi tes amis</small></span></button>';
+  }
+  h+='<button type="button" class="prow" data-a="cmb"><span class="pi">📋</span><span class="pt2"><b>Membres ('+c.members+')</b></span></button>';
+  h+=adm?'<button type="button" class="prow" data-a="cdel"><span class="pi">🗑</span><span class="pt2"><b style="color:#D6336C">Supprimer la communauté</b></span></button>':'<button type="button" class="prow" data-a="cleave"><span class="pi">⎋</span><span class="pt2"><b style="color:#D6336C">Quitter la communauté</b></span></button>';
+  $("cmb").innerHTML=h;
+}
+async function reloadCom(){
+  await loadComms();
+  var id=curCom&&curCom.id;curCom=comms.filter(function(x){return x.id===id})[0]||curCom;
+  renderComms();refreshCommunity();
+}
+$("cmx").onclick=function(){$("cm").close()};
+$("cmb").onclick=async function(e){
+  var b=e.target.closest("[data-a]");if(!b)return;
+  var a=b.dataset.a,c=curCom;if(!c)return;
+  if(a==="cgo"){$("cm").close();setTab("chats");open(b.dataset.g);return}
+  if(offlineMode){alert("Connexion internet nécessaire.");return}
+  if(a==="cjoin"){
+    var r=await sb.rpc("community_join_group",{cid:c.id,gid:b.dataset.g});
+    if(r.error){alert(r.error.message);return}
+    await loadConvs();refreshCommunity();return;
+  }
+  if(a==="cmk"){
+    askForm("Créer un groupe",'<input class="field" id="cgn" maxlength="30" placeholder="Nom du groupe" required autocomplete="off">',"Créer",async function(){
+      var r=await sb.rpc("community_create_group",{cid:c.id,n:$("cgn").value});
+      if(r.error)return r.error.message;
+      await loadConvs();await reloadCom();
+    });
+    return;
+  }
+  if(a==="cat"){
+    var mine=convs.filter(function(x){return x.group&&x.creator===me.id});
+    if(!mine.length){alert("Tu n'as créé aucun groupe à ajouter.");return}
+    sheet(mine.map(function(g){return{t:"💬 "+title(g),f:async function(){
+      var r=await sb.rpc("community_attach_group",{cid:c.id,gid:g.id});
+      if(r.error){alert(r.error.message);return}
+      await reloadCom();
+    }}}));
+    return;
+  }
+  if(a==="cmb"){
+    var r=await sb.rpc("community_members_list",{cid:c.id});
+    if(r.error){alert(r.error.message);return}
+    sheet((r.data||[]).map(function(m){return{h:(m.name||"?")+(m.role==="admin"?" · administrateur":"")}}));
+    return;
+  }
+  if(a==="cadd"){
+    var rl=await sb.rpc("community_members_list",{cid:c.id});
+    var have=(rl.data||[]).map(function(x){return x.user_id});
+    try{await loadFriends()}catch(x){}
+    var cand=friends.filter(function(f){return f.status==="accepted"&&have.indexOf(f.other_id)<0});
+    askForm("Ajouter à la communauté",'<div id="cpk" style="max-height:40vh;overflow-y:auto"></div>',"Ajouter",async function(){
+      var ids=pickedIds($("cpk"));
+      if(!ids.length)return "Choisis au moins un ami.";
+      var r2=await sb.rpc("community_add_members",{cid:c.id,uids:ids});
+      if(r2.error)return r2.error.message;
+      await reloadCom();
+    });
+    renderPicker($("cpk"),cand,"Aucun ami à ajouter.");
+    $("cpk").onclick=function(ev){if(ev.target.closest("[data-open]")){$("fm2").close();$("cm").close();openFriends()}};
+    return;
+  }
+  if(a==="cdel"){
+    if(!confirm("Supprimer cette communauté ? Les groupes sont conservés, mais ne sont plus rattachés."))return;
+    var r3=await sb.rpc("delete_community",{cid:c.id});
+    if(r3.error){alert(r3.error.message);return}
+    $("cm").close();await loadConvs();await loadComms();renderComms();return;
+  }
+  if(a==="cleave"){
+    if(!confirm("Quitter cette communauté ? Tu quitteras aussi ses groupes."))return;
+    var r4=await sb.rpc("leave_community",{cid:c.id});
+    if(r4.error){alert(r4.error.message);return}
+    $("cm").close();await loadConvs();await loadComms();renderComms();return;
+  }
+};
 /* ---- photos : copie locale ---- */
 function photoHtml(m){
   if(!m.image_path)return"";
@@ -1756,8 +2184,8 @@ var tab="chats";
 function setTab(t){
   if(t!==tab&&t!=="chats"&&tab==="chats")history.pushState({ftab:1},"");
   tab=t;
-  $("list").hidden=t!=="chats";$("fd").hidden=t!=="friends";$("pf2").hidden=t!=="profile";$("sbar").hidden=t!=="chats";$("new").hidden=t!=="chats";
-  $("tabc").classList.toggle("on",t==="chats");$("frb").classList.toggle("on",t==="friends");$("acc").classList.toggle("on",t==="profile");
+  $("list").hidden=t!=="chats";$("fd").hidden=t!=="friends";$("pf2").hidden=t!=="profile";$("sp").hidden=t!=="actu";$("cp").hidden=t!=="com";$("sbar").hidden=t!=="chats";$("new").hidden=t!=="chats";
+  $("tabc").classList.toggle("on",t==="chats");$("frb").classList.toggle("on",t==="friends");$("acc").classList.toggle("on",t==="profile");$("tact").classList.toggle("on",t==="actu");$("tcom").classList.toggle("on",t==="com");
 }
 $("tabc").onclick=function(){if(history.state&&history.state.ftab&&!cur)history.back();else setTab("chats")};
 async function openFriends(){
@@ -1933,19 +2361,26 @@ function renderReports(d){
       +'<div class="rh"><b>'+esc(x.reason)+'</b><small>'+new Date(x.created_at).toLocaleString("fr-FR")+'</small></div>'
       +(x.details?'<p>'+esc(x.details)+'</p>':'')
       +'<p class="rm">Signalé par '+esc(x.reporter_name||"compte supprimé")+' · Personne signalée : '+esc(x.reported_name||"compte supprimé")+(x.reported_email?' ('+esc(x.reported_email)+')':'')+(x.reported_banned?' · SUSPENDUE':'')+'</p>'
-      +'<div class="quote">'+(has?(esc(x.message_body)||(x.message_image?"(photo)":x.message_audio?"(message vocal)":x.message_video?"(vidéo)":x.message_file?"(fichier)":"")):'Signalement d\'une personne, ou message déjà supprimé.')+'</div>'
-      +(x.message_file?'<div class="quote">📄 '+esc(x.message_file_name||"fichier")+' <button type="button" data-a="dlf" data-p="'+esc(x.message_file)+'" data-n="'+esc(x.message_file_name||"fichier")+'">Télécharger</button></div>':'')+(x.message_video?'<video class="radio" controls playsinline preload="none" data-vpath="'+esc(x.message_video)+'"></video>':'')+(x.message_audio?'<audio class="radio" controls preload="none" data-path="'+esc(x.message_audio)+'"></audio>':'')+(x.message_image?'<img class="rimg ph" data-path="'+esc(x.message_image)+'" alt="Photo signalée">':'')+'<div class="ra2">'
+      +'<div class="quote">'+(has?(esc(x.message_body)||(x.message_image?"(photo)":x.message_audio?"(message vocal)":x.message_video?"(vidéo)":x.message_file?"(fichier)":x.status_id?"(statut)":"")):'Signalement d\'une personne, ou message déjà supprimé.')+'</div>'
+      +(x.status_id?'<div class="quote">📰 Statut : '+esc(x.status_body||"")+'</div>'+(x.status_image?'<img class="rimg ph" data-spath="'+esc(x.status_image)+'" alt="Statut signalé">':'')+'<button type="button" class="chipbtn" data-a="dels" data-sid="'+x.status_id+'">Supprimer le statut</button>':'')+(x.message_file?'<div class="quote">📄 '+esc(x.message_file_name||"fichier")+' <button type="button" data-a="dlf" data-p="'+esc(x.message_file)+'" data-n="'+esc(x.message_file_name||"fichier")+'">Télécharger</button></div>':'')+(x.message_video?'<video class="radio" controls playsinline preload="none" data-vpath="'+esc(x.message_video)+'"></video>':'')+(x.message_audio?'<audio class="radio" controls preload="none" data-path="'+esc(x.message_audio)+'"></audio>':'')+(x.message_image?'<img class="rimg ph" data-path="'+esc(x.message_image)+'" alt="Photo signalée">':'')+'<div class="ra2">'
       +(has?'<button data-a="del">Supprimer le message</button>':'')
       +(x.reported_id?'<button data-a="ban">'+(x.reported_banned?'Réactiver le compte':'Suspendre le compte')+'</button>':'')
       +'<button data-a="st">'+(x.status==="nouveau"?'Marquer traité':'Rouvrir')+'</button></div></div>';
   }).join("");
-  hydrate($("apl"),false);hydrateAudio($("apl"));hydrateVideo($("apl"));
+  hydrate($("apl"),false);hydrateAudio($("apl"));hydrateVideo($("apl"));hydrateStatusImgs($("apl"));
 }
 $("adminb").onclick=openPanel;
 $("apc").onclick=function(){$("adp").close();refreshBadge()};
 $("apl").onclick=async function(e){
   var b=e.target.closest("button[data-a]");if(!b)return;
   if(b.dataset.a==="dlf"){downloadFile(b.dataset.p,b.dataset.n);return}
+  if(b.dataset.a==="dels"){
+    if(!confirm("Supprimer ce statut ?"))return;
+    var rr=await sb.rpc("admin_delete_status",{sid:+b.dataset.sid});
+    if(rr.error){alert(rr.error.message);return}
+    if(rr.data)sb.storage.from("status").remove([rr.data]);
+    openPanel();return;
+  }
   var card=b.closest(".rep"),a=b.dataset.a,r;
   if(a==="del"){
     if(!confirm("Supprimer ce message pour tout le monde ?"))return;
@@ -1974,7 +2409,7 @@ function openRa(uid,m,cid){
 $("racl").onclick=function(){$("ra").close()};
 $("rago").onclick=async function(){
   if(!raT)return;
-  var r=await sb.from("reports").insert({reported_user_id:raT.uid,message_id:raT.msg?raT.msg.id:null,conversation_id:raT.cid||null,reason:$("rar").value,details:$("rad").value.trim()||null});
+  var r=await sb.from("reports").insert({reported_user_id:raT.uid,status_id:raT.status?raT.status.id:null,message_id:raT.msg?raT.msg.id:null,conversation_id:raT.cid||null,reason:$("rar").value,details:$("rad").value.trim()||null});
   if(r.error){say($("ram"),r.error.message);return}
   say($("ram"),"Merci, ton signalement a été envoyé. Nous allons l'examiner.",true);
 };
