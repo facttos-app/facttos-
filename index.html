@@ -270,9 +270,10 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
     <div class="pane" id="pf2" hidden>
       <div id="pfl"></div>
       <h3 class="fh">Compte</h3>
+      <button type="button" class="prow" id="pfr"><span class="pi">👥</span><span class="pt2"><b>Gérer mes amis</b><small>Voir et retirer un ami</small></span><span class="pe">›</span></button>
       <button type="button" class="prow" id="psb"><span class="pi">⚙</span><span class="pt2"><b>Paramètres du compte</b><small>Recherche, confirmations de lecture, déconnexion, suppression</small></span><span class="pe">›</span></button>
       <a href="confidentialite.html" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:14px;color:var(--me);font-size:14px">Confidentialité et conditions</a>
-      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 34</p>
+      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 35</p>
     </div>
     <button class="fab" id="new" aria-label="Nouvelle conversation">＋</button>
     </div>
@@ -285,6 +286,11 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
   </aside>
   <main class="chat" id="chat"></main>
 </div>
+
+<dialog id="fg" style="width:min(520px,96vw)">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Mes amis</h2><button class="icon-btn" id="fgc" aria-label="Fermer">✕</button></div>
+  <div id="fgl" style="max-height:60vh;overflow-y:auto;margin-top:8px"></div>
+</dialog>
 
 <dialog id="pe">
   <form id="pef">
@@ -655,7 +661,7 @@ function renderChat(){
   $("more").onclick=function(){
     var it=[];
     if(c.group){
-      if(c.creator===me.id)it.push({t:"👥 Ajouter des membres",f:async function(){
+      it.push({t:"👥 Ajouter des membres",f:async function(){
         try{await loadFriends()}catch(e){}
         renderPicker($("gfl"),friends.filter(function(f){return f.status==="accepted"&&c.members.indexOf(f.other_id)<0}),"Aucun ami à ajouter.");
         say($("gm"),"");$("gd").showModal();
@@ -1581,6 +1587,27 @@ window.addEventListener("popstate",function(){
   if(cur){closeChat();return}
   if(tab!=="chats")setTab("chats");
 });
+/* ---- gestion des amis (profil) ---- */
+async function openFriendMgr(){
+  try{await loadFriends()}catch(e){}
+  renderFriendMgr();$("fg").showModal();
+}
+function renderFriendMgr(){
+  var fr=friends.filter(function(f){return f.status==="accepted"});
+  $("fgl").innerHTML=fr.length?fr.map(function(f){return frow(f.other_name,'<button data-a="rem" data-id="'+f.other_id+'">Retirer</button>',f.other_id)}).join(""):'<p class="mute">Tu n\'as pas encore d\'amis.</p>';
+}
+$("pfr").onclick=openFriendMgr;
+$("fgc").onclick=function(){$("fg").close()};
+$("fgl").onclick=async function(e){
+  var b=e.target.closest("button[data-a=rem]");if(!b)return;
+  if(offlineMode){alert("Connexion internet nécessaire pour retirer un ami.");return}
+  if(!confirm("Retirer cette personne de tes amis ?"))return;
+  var r=await sb.rpc("remove_friend",{other:b.dataset.id});
+  if(r.error){alert(r.error.message);return}
+  try{await loadFriends()}catch(x){}
+  renderFriendMgr();
+  if(tab==="friends")renderFriends();
+};
 /* ---- photos : copie locale ---- */
 function photoHtml(m){
   if(!m.image_path)return"";
@@ -1638,7 +1665,7 @@ function renderFriends(){
       fr=friends.filter(function(f){return f.status==="accepted"}),h="";
   if(inc.length)h+='<h3 class="fh">Demandes reçues</h3>'+inc.map(function(f){return frow(f.other_name,'<button data-a="acc" data-fid="'+f.fid+'">Accepter</button><button data-a="dec" data-fid="'+f.fid+'">Refuser</button>',f.other_id)}).join("");
   if(out.length)h+='<h3 class="fh">Demandes envoyées</h3>'+out.map(function(f){return frow(f.other_name,'<button data-a="rem" data-id="'+f.other_id+'">Annuler</button>',f.other_id)}).join("");
-  h+='<h3 class="fh">Mes amis ('+fr.length+')</h3>'+(fr.length?fr.map(function(f){return frow(f.other_name,'<button data-a="prof" data-id="'+f.other_id+'">Profil</button><button data-a="chat" data-id="'+f.other_id+'">Écrire</button><button data-a="rem" data-c="1" data-id="'+f.other_id+'">Retirer</button>',f.other_id)}).join(""):'<p class="mute">Aucun ami pour l\'instant. Cherche une personne par son nom ci-dessus.</p>');
+  h+='<h3 class="fh">Mes amis ('+fr.length+')</h3>'+(fr.length?fr.map(function(f){return frow(f.other_name,'<button data-a="prof" data-id="'+f.other_id+'">Profil</button><button data-a="chat" data-id="'+f.other_id+'">Écrire</button>',f.other_id)}).join(""):'<p class="mute">Aucun ami pour l\'instant. Cherche une personne par son nom ci-dessus.</p>');
   $("flist").innerHTML=h;
 }
 async function searchPeople(q){
