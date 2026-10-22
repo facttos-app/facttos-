@@ -298,6 +298,16 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
 .cert-n{font-weight:800;font-size:24px;overflow-wrap:anywhere}
 .cert-c{font-weight:700;font-size:18px;color:var(--me);overflow-wrap:anywhere}
 .cert-k{margin-top:10px;font-size:13px;color:var(--mute)}
+.svb{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:10px 12px calc(14px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.6))}
+.svrow{display:flex;gap:8px;align-items:center}
+.svrow input{flex:1;min-width:0;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:24px;padding:11px 16px;font:inherit;font-size:16px;outline:0}
+.svrow input::placeholder{color:rgba(255,255,255,.75)}
+.svrow button{flex:none;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.35);font-size:22px;color:#fff}
+.svq.on{background:rgba(255,255,255,.4)!important}
+.sva{width:100%;padding:12px;border-radius:20px;background:rgba(0,0,0,.45);color:#fff;font-size:15px}
+.svp.paused .pb i.run{animation-play-state:paused}
+.svcap{padding-bottom:110px!important}
+.toast{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:8px 16px;border-radius:18px;z-index:6;font-size:14px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -355,7 +365,7 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
       <button type="button" class="prow" id="pfr"><span class="pi">👥</span><span class="pt2"><b>Gérer mes amis</b><small>Voir et retirer un ami</small></span><span class="pe">›</span></button>
       <button type="button" class="prow" id="psb"><span class="pi">⚙</span><span class="pt2"><b>Paramètres du compte</b><small>Recherche, confirmations de lecture, déconnexion, suppression</small></span><span class="pe">›</span></button>
       <a href="confidentialite.html" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:14px;color:var(--me);font-size:14px">Confidentialité et conditions</a>
-      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 38</p>
+      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 39</p>
     </div>
     <button class="fab" id="new" aria-label="Nouvelle conversation">＋</button>
     </div>
@@ -383,6 +393,11 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
   <div class="act"><button type="button" id="cecl" style="padding:10px 14px">Fermer</button><button type="button" id="cedl" class="send">⬇ Télécharger</button></div>
 </dialog>
 
+<dialog id="sa" style="width:min(520px,96vw)">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Activité du statut</h2><button class="icon-btn" id="sax" aria-label="Fermer">✕</button></div>
+  <div id="sab" style="max-height:65vh;overflow-y:auto;margin-top:8px"></div>
+</dialog>
+
 <dialog id="fm2">
   <form id="fm2f">
     <h2 id="fm2t" style="margin-top:0"></h2>
@@ -407,6 +422,7 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
   <div id="svc"></div>
   <div class="svp" id="svp"></div>
   <div class="svh" id="svh"></div>
+  <div class="svb" id="svb"></div>
   <div class="svbtns"><button type="button" id="svm" aria-label="Options">⋮</button><button type="button" id="svx" aria-label="Fermer">✕</button></div>
 </dialog>
 
@@ -1848,6 +1864,7 @@ async function loadFeed(){
   var need=ids.filter(function(u){return !names[u]});
   if(need.length){var p=await sb.from("profiles").select("id,name").in("id",need);(p.data||[]).forEach(function(x){names[x.id]=x.name})}
   await loadAvatars(ids);
+  loadReactions();loadMyStats();
   updateActuBadge();
   return true;
 }
@@ -1866,7 +1883,7 @@ function renderActu(){
     if(!!a.unseen!==!!b.unseen)return a.unseen?-1:1;
     return new Date(b.last.created_at)-new Date(a.last.created_at);
   });
-  var h='<div class="srow" data-s="mine"><span class="sav'+(mine?' ring':'')+'">'+avatarFor(me.id,names[me.id]||"?","")+'</span><span class="pt2"><b>Mon statut</b><small>'+(mine?mine.items.length+" statut"+(mine.items.length>1?"s":"")+" · "+agoTxt(mine.last.created_at):"Appuie sur Ajouter pour publier")+'</small></span><button type="button" class="chipbtn" id="stadd">＋ Ajouter</button></div>';
+  var h='<div class="srow" data-s="mine"><span class="sav'+(mine?' ring':'')+'">'+avatarFor(me.id,names[me.id]||"?","")+'</span><span class="pt2"><b>Mon statut</b><small>'+(mine?mine.items.length+" statut"+(mine.items.length>1?"s":"")+" · "+agoTxt(mine.last.created_at)+statsTot(mine):"Appuie sur Ajouter pour publier")+'</small></span><button type="button" class="chipbtn" id="stadd">＋ Ajouter</button></div>';
   h+='<h3 class="fh">Mises à jour récentes</h3>';
   h+=others.length?others.map(function(g){
     return '<button type="button" class="srow" data-u="'+g.uid+'"><span class="sav ring'+(g.unseen?'':' seen')+'">'+avatarFor(g.uid,names[g.uid]||"?","")+'</span><span class="pt2"><b>'+esc(names[g.uid]||"Utilisateur")+'</b><small>'+agoTxt(g.last.created_at)+'</small></span></button>';
@@ -1945,6 +1962,8 @@ function openStory(uid,startAt){
 }
 function startStoryTimer(){
   clearTimeout(stTimer);
+  if(document.activeElement&&document.activeElement.id==="svr")return;
+  $("svp").classList.remove("paused");
   var v=stView;if(!v)return;
   var bars=$("svp").children;
   for(var k=0;k<bars.length;k++){bars[k].firstChild.className=k<v.i?"done":(k===v.i?"run":"")}
@@ -1970,7 +1989,7 @@ async function showStory(){
     var im=$("svi");
     if(u){im.onload=startStoryTimer;im.onerror=startStoryTimer;im.src=u}else startStoryTimer();
   }
-  updateActuBadge();
+  updateActuBadge();renderStoryBar(s);recordView(s);
 }
 function nextStory(){
   var v=stView;if(!v)return;
@@ -2535,6 +2554,101 @@ function catForm(c){
     await loadFormation();renderFo();
   });
 }
+/* ---- statuts : réponses, réactions, vues ---- */
+var stReact={},stStats={},stViewed={};
+function toast(msg){
+  var d=document.createElement("div");d.className="toast";d.textContent=msg;
+  var host=$("sv").open?$("sv"):document.body;host.appendChild(d);setTimeout(function(){d.remove()},1600);
+}
+async function loadReactions(){
+  var r=await sb.from("status_reactions").select("status_id,emoji").eq("user_id",me.id);
+  if(r.error)return;
+  stReact={};(r.data||[]).forEach(function(x){stReact[x.status_id]=x.emoji});
+}
+async function loadMyStats(){
+  var r=await sb.rpc("my_status_stats");
+  if(r.error)return;
+  stStats={};
+  (r.data||[]).forEach(function(x){stStats[x.status_id]={views:Number(x.views),reactions:Number(x.reactions),replies:Number(x.replies)}});
+  if(tab==="actu")renderActu();
+}
+function statsTot(m){
+  var v=0,r=0,p=0;
+  m.items.forEach(function(s){var x=stStats[s.id];if(x){v+=x.views;r+=x.reactions;p+=x.replies}});
+  return (v||r||p)?" · 👁 "+v+" · ❤ "+r+" · 💬 "+p:"";
+}
+function statsLabel(s){var x=stStats[s.id]||{views:0,reactions:0,replies:0};return "👁 "+x.views+" · ❤ "+x.reactions+" · 💬 "+x.replies+" ›"}
+function pauseStory(){clearTimeout(stTimer);$("svp").classList.add("paused")}
+function resumeStory(){$("svp").classList.remove("paused");startStoryTimer()}
+function recordView(s){
+  if(!s||s.user_id===me.id||stViewed[s.id]||offlineMode)return;
+  stViewed[s.id]=1;sb.rpc("status_view",{sid:s.id}).then(function(){},function(){});
+}
+function renderStoryBar(s){
+  var v=stView,b=$("svb");if(!v||!b)return;
+  if(v.uid===me.id){
+    b.innerHTML='<button type="button" class="sva" id="sva">'+statsLabel(s)+'</button>';
+    $("sva").onclick=function(){openActivity(s)};
+    b.onclick=null;
+    loadMyStats().then(function(){if(stView&&stView.items[stView.i]===s&&$("sva"))$("sva").textContent=statsLabel(s)});
+    return;
+  }
+  var mine=stReact[s.id];
+  function q(e){return '<button type="button" class="svq'+(mine===e?' on':'')+'" data-r="'+e+'">'+e+'</button>'}
+  b.innerHTML='<div class="svrow"><input id="svr" maxlength="300" placeholder="Répondre" autocomplete="off"><button type="button" id="svs" hidden aria-label="Envoyer">➤</button>'+q("😍")+q("😂")+'<button type="button" class="svq'+(mine==="❤️"?' on':'')+'" data-r="❤️" aria-label="J\'aime">'+(mine==="❤️"?"❤️":"🤍")+'</button></div>';
+  var inp=$("svr");
+  inp.onfocus=pauseStory;
+  inp.onblur=function(){setTimeout(function(){if(stView&&$("svr")&&!$("svr").value)resumeStory()},200)};
+  inp.oninput=function(){$("svs").hidden=!inp.value.trim()};
+  inp.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();sendStoryReply(s)}};
+  $("svs").onclick=function(){sendStoryReply(s)};
+  b.onclick=function(e){var qb=e.target.closest("button[data-r]");if(qb)reactStory(s,qb.dataset.r)};
+}
+async function sendStoryReply(s){
+  var inp=$("svr");if(!inp)return;
+  var t=inp.value.trim();if(!t)return;
+  if(offlineMode){alert("Connexion internet nécessaire.");return}
+  var r=await sb.rpc("status_reply",{sid:s.id,txt:t});
+  if(r.error){alert(r.error.message);return}
+  inp.value="";$("svs").hidden=true;inp.blur();toast("Réponse envoyée ✓");
+  if(stView)resumeStory();
+}
+async function reactStory(s,e){
+  if(offlineMode){alert("Connexion internet nécessaire.");return}
+  var same=stReact[s.id]===e;
+  var r=same?await sb.rpc("status_unreact",{sid:s.id}):await sb.rpc("status_react",{sid:s.id,emoji:e});
+  if(r.error){alert(r.error.message);return}
+  if(same)delete stReact[s.id];else stReact[s.id]=e;
+  toast(same?"Réaction retirée":"Réaction envoyée "+e);
+  renderStoryBar(s);
+}
+async function openActivity(s){
+  pauseStory();
+  $("sab").innerHTML='<div class="empty">Chargement…</div>';
+  $("sa").showModal();
+  var r=await sb.rpc("status_activity",{sid:s.id});
+  if(r.error){$("sab").innerHTML='<p class="msg">'+esc(r.error.message)+'</p>';return}
+  var d=r.data||{views:[],reactions:[],replies:[]},uids=[];
+  ["views","reactions","replies"].forEach(function(k){(d[k]||[]).forEach(function(x){if(uids.indexOf(x.uid)<0)uids.push(x.uid)})});
+  await loadAvatars(uids);
+  function row(x,right,extra){
+    return '<div class="frow"'+extra+'><span class="fn">'+avatarFor(x.uid,x.name||"?"," sm")+'<span class="fnm"><b>'+esc(x.name||"Utilisateur")+'</b>'+(x.body?'<br><span class="mute" style="white-space:normal">'+esc(x.body)+'</span>':'')+'</span></span><span class="mute" style="flex:none">'+right+'</span></div>';
+  }
+  var h='<h3 class="fh">Réponses ('+d.replies.length+')</h3>'+(d.replies.length?d.replies.map(function(x){return row(x,agoTxt(x.at),' data-u="'+x.uid+'" data-b="'+esc(x.body||"")+'"')}).join(""):'<p class="mute">Aucune réponse.</p>');
+  h+='<h3 class="fh">Réactions ('+d.reactions.length+')</h3>'+(d.reactions.length?d.reactions.map(function(x){return row(x,'<span style="font-size:22px">'+esc(x.emoji)+'</span>','')}).join(""):'<p class="mute">Aucune réaction.</p>');
+  h+='<h3 class="fh">Vues ('+d.views.length+')</h3>'+(d.views.length?d.views.map(function(x){return row(x,agoTxt(x.at),'')}).join(""):'<p class="mute">Personne n\'a encore vu ce statut.</p>');
+  $("sab").innerHTML=h;
+}
+$("sax").onclick=function(){$("sa").close()};
+$("sa").addEventListener("close",function(){if($("sv").open&&stView)resumeStory()});
+$("sab").onclick=function(e){
+  var r=e.target.closest(".frow[data-u]");if(!r)return;
+  var u=r.dataset.u,body=r.dataset.b;
+  sheet([{t:"⚑ Signaler ou bloquer",d:true,f:function(){
+    $("sa").close();closeStory();openRa(u,null,null);
+    if(raT){$("rad").value="Réponse à un statut : "+body.slice(0,120)}
+  }}]);
+};
 /* ---- photos : copie locale ---- */
 function photoHtml(m){
   if(!m.image_path)return"";
