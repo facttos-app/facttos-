@@ -308,6 +308,10 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
 .svp.paused .pb i.run{animation-play-state:paused}
 .svcap{padding-bottom:110px!important}
 .toast{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:8px 16px;border-radius:18px;z-index:6;font-size:14px;white-space:nowrap}
+.avtop{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 12px;color:#fff;font-weight:700;font-size:18px;background:linear-gradient(rgba(0,0,0,.6),transparent);z-index:2}
+.avtop button{flex:none;width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:19px}
+.avbot{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:14px 14px calc(20px + env(safe-area-inset-bottom,0px));z-index:2}
+.av[data-uid]{cursor:zoom-in}
 </style>
 </head>
 <body>
@@ -365,7 +369,7 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
       <button type="button" class="prow" id="pfr"><span class="pi">👥</span><span class="pt2"><b>Gérer mes amis</b><small>Voir et retirer un ami</small></span><span class="pe">›</span></button>
       <button type="button" class="prow" id="psb"><span class="pi">⚙</span><span class="pt2"><b>Paramètres du compte</b><small>Recherche, confirmations de lecture, déconnexion, suppression</small></span><span class="pe">›</span></button>
       <a href="confidentialite.html" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:14px;color:var(--me);font-size:14px">Confidentialité et conditions</a>
-      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 39</p>
+      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 40</p>
     </div>
     <button class="fab" id="new" aria-label="Nouvelle conversation">＋</button>
     </div>
@@ -396,6 +400,12 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
 <dialog id="sa" style="width:min(520px,96vw)">
   <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Activité du statut</h2><button class="icon-btn" id="sax" aria-label="Fermer">✕</button></div>
   <div id="sab" style="max-height:65vh;overflow-y:auto;margin-top:8px"></div>
+</dialog>
+
+<dialog id="av" class="stdlg">
+  <img id="avi" alt="Photo de profil" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">
+  <div class="avtop"><span id="avn"></span><button type="button" id="avx" aria-label="Fermer">✕</button></div>
+  <div class="avbot"><button type="button" id="avp" class="send">👤 Voir le profil</button></div>
 </dialog>
 
 <dialog id="fm2">
@@ -570,7 +580,7 @@ function avatarUrl(p){return sb.storage.from("avatars").getPublicUrl(p).data.pub
 function avatarFor(uid,name,extra){
   var p=uid&&avatarOf[uid];
   if(p)return '<span class="av'+(extra||"")+'"><img src="'+avatarUrl(p)+'" alt=""></span>';
-  return '<span class="av'+(extra||"")+'" style="background:'+COLORS[hash(String(name))%COLORS.length]+'">'+esc(String(name).charAt(0).toUpperCase())+'</span>';
+  return '<span class="av'+(extra||"")+'"'+(p?' data-uid="'+uid+'" data-n="'+esc(String(name))+'"':'')+' style="background:'+COLORS[hash(String(name))%COLORS.length]+'">'+esc(String(name).charAt(0).toUpperCase())+'</span>';
 }
 function avatar(c){
   if(c.group)return avatarFor(null,title(c)," g");
@@ -743,7 +753,7 @@ function dayLabel(t){
 }
 function snippet(m){return m.file_path?"📄 "+(m.file_name||"Fichier"):m.video_path?"🎥 Vidéo":m.image_path?"📷 Photo":m.audio_path?"🎤 Message vocal":String(m.body||"")}
 function quoteHtml(m){
-  if(!m.reply_to)return"";
+  if(!m.reply_to)return m.status_quote?'<span class="q"><b>📰 Réponse à un statut</b><span>'+esc(m.status_quote)+'</span></span>':"";
   var o=findMsg(m.reply_to);
   if(!o)return '<span class="q"><span>Message indisponible</span></span>';
   var who=o.sender_id===me.id?"Toi":(names[o.sender_id]||"Compte supprimé");
@@ -2608,18 +2618,30 @@ async function sendStoryReply(s){
   var inp=$("svr");if(!inp)return;
   var t=inp.value.trim();if(!t)return;
   if(offlineMode){alert("Connexion internet nécessaire.");return}
-  var r=await sb.rpc("status_reply",{sid:s.id,txt:t});
-  if(r.error){alert(r.error.message);return}
-  inp.value="";$("svs").hidden=true;inp.blur();toast("Réponse envoyée ✓");
+  var msg="Envoyé dans votre conversation ✓";
+  var r=await sb.rpc("status_chat_reply",{sid:s.id,txt:t});
+  if(r.error){
+    if(/NOT_FRIENDS/.test(r.error.message)){
+      var r2=await sb.rpc("status_reply",{sid:s.id,txt:t});
+      if(r2.error){alert(r2.error.message);return}
+      msg="Envoyé à l'auteur (pas encore amis : il le verra dans son statut)";
+    }else{alert(r.error.message);return}
+  }
+  inp.value="";$("svs").hidden=true;inp.blur();toast(msg);
   if(stView)resumeStory();
 }
 async function reactStory(s,e){
   if(offlineMode){alert("Connexion internet nécessaire.");return}
-  var same=stReact[s.id]===e;
-  var r=same?await sb.rpc("status_unreact",{sid:s.id}):await sb.rpc("status_react",{sid:s.id,emoji:e});
+  if(stReact[s.id]===e){
+    var u=await sb.rpc("status_unreact",{sid:s.id});
+    if(u.error){alert(u.error.message);return}
+    delete stReact[s.id];toast("Réaction retirée");renderStoryBar(s);return;
+  }
+  var r=await sb.rpc("status_react",{sid:s.id,emoji:e});
   if(r.error){alert(r.error.message);return}
-  if(same)delete stReact[s.id];else stReact[s.id]=e;
-  toast(same?"Réaction retirée":"Réaction envoyée "+e);
+  stReact[s.id]=e;
+  var c=await sb.rpc("status_chat_reply",{sid:s.id,txt:e});
+  toast(c.error?"Réaction envoyée "+e:"Réaction envoyée dans votre conversation "+e);
   renderStoryBar(s);
 }
 async function openActivity(s){
@@ -2649,6 +2671,22 @@ $("sab").onclick=function(e){
     if(raT){$("rad").value="Réponse à un statut : "+body.slice(0,120)}
   }}]);
 };
+/* ---- agrandir la photo de profil ---- */
+function openAvatarViewer(uid,name){
+  var p=avatarOf[uid];if(!p)return;
+  $("avi").src=avatarUrl(p);$("avn").textContent=name||"";
+  $("avp").hidden=(uid===me.id);$("avp").dataset.u=uid;
+  $("av").showModal();
+}
+document.addEventListener("click",function(e){
+  var a=e.target.closest&&e.target.closest(".av[data-uid]");
+  if(!a||a.closest("#sv")||a.closest("#av"))return;
+  e.stopPropagation();e.preventDefault();
+  openAvatarViewer(a.dataset.uid,a.dataset.n);
+},true);
+$("avx").onclick=function(){$("av").close()};
+$("av").onclick=function(e){if(e.target===this||e.target.id==="avi")$("av").close()};
+$("avp").onclick=function(){var u=this.dataset.u;$("av").close();if(u)viewProfile(u)};
 /* ---- photos : copie locale ---- */
 function photoHtml(m){
   if(!m.image_path)return"";
@@ -2768,7 +2806,7 @@ $("avc").onclick=function(){$("avf").click()};
 $("avf").onchange=async function(){
   var f=this.files[0];this.value="";if(!f)return;
   try{
-    var b=await cropSquare(f,256,.82),path=me.id+"/"+Date.now()+".jpg";
+    var b=await cropSquare(f,640,.85),path=me.id+"/"+Date.now()+".jpg";
     var u=await sb.storage.from("avatars").upload(path,b,{contentType:"image/jpeg"});
     if(u.error)throw u.error;
     var r=await sb.from("profiles").update({avatar_path:path}).eq("id",me.id);
