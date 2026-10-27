@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>FACTTOS</title>
+<title>FACTYOS</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#7B2FF7">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="FACTTOS">
+<meta name="apple-mobile-web-app-title" content="FACTYOS">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="icon" type="image/png" href="favicon-48.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -331,7 +331,7 @@ dialog.appop::backdrop{background:rgba(0,0,0,.8)}
 
 <section class="auth" id="auth" hidden>
   <div class="card">
-    <div class="logo" aria-label="FACTTOS">FAC<i>TT</i>OS</div>
+    <div class="logo" aria-label="FACTYOS">FAC<i>TY</i>OS</div>
     <p id="sub">Connecte-toi pour retrouver tes conversations.</p>
     <form id="af">
       <input class="field" id="an" placeholder="Ton prénom ou pseudo" maxlength="30" autocomplete="nickname" hidden>
@@ -348,7 +348,7 @@ dialog.appop::backdrop{background:rgba(0,0,0,.8)}
 
 <div id="mnt" hidden style="position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;place-items:center;padding:24px;text-align:center">
   <div>
-    <div class="logo" aria-label="FACTTOS">FAC<i>TT</i>OS</div>
+    <div class="logo" aria-label="FACTYOS">FAC<i>TY</i>OS</div>
     <h2>Maintenance en cours</h2>
     <p id="mntm" style="color:var(--mute)"></p>
     <button class="send" id="mntr" type="button">Réessayer</button>
@@ -360,7 +360,7 @@ dialog.appop::backdrop{background:rgba(0,0,0,.8)}
   <aside class="side">
     <div id="ann" hidden style="background:#FF4D8D;color:#fff;padding:8px 38px 8px 12px;font-size:14px;position:relative"><span id="annt"></span><button id="annx" aria-label="Fermer l'annonce" style="position:absolute;right:6px;top:4px;color:#fff;font-size:18px;padding:4px 8px">✕</button></div>
     <div id="offb" class="offb" hidden>📴 Hors connexion : tu consultes les messages enregistrés sur ce téléphone.</div>
-    <div class="brand"><div class="logo" aria-label="FACTTOS">FAC<i>TT</i>OS</div>
+    <div class="brand"><div class="logo" aria-label="FACTYOS">FAC<i>TY</i>OS</div>
       <div class="tools"><button class="icon-btn" id="fbtn" aria-label="Formation">🎓</button><button class="icon-btn" id="menu" aria-label="Menu">⋮</button><button id="out" hidden aria-label="Se déconnecter"></button></div></div>
     <div class="me-line" id="who"></div>
     <div id="sbar">
@@ -382,7 +382,7 @@ dialog.appop::backdrop{background:rgba(0,0,0,.8)}
       <button type="button" class="prow" id="pfr"><span class="pi">👥</span><span class="pt2"><b>Gérer mes amis</b><small>Voir et retirer un ami</small></span><span class="pe">›</span></button>
       <button type="button" class="prow" id="psb"><span class="pi">⚙</span><span class="pt2"><b>Paramètres du compte</b><small>Recherche, confirmations de lecture, déconnexion, suppression</small></span><span class="pe">›</span></button>
       <a href="confidentialite.html" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:14px;color:var(--me);font-size:14px">Confidentialité et conditions</a>
-      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 42</p>
+      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTYOS · version 42</p>
     </div>
     <button class="fab" id="new" aria-label="Nouvelle conversation">＋</button>
     </div>
@@ -629,7 +629,7 @@ function cropSquare(file,size,q){
 }
 
 /* ---- Connexion / inscription ---- */
-function mode(s){signup=s;$("an").hidden=!s;$("an").required=s;$("ab").textContent=s?"Créer mon compte":"Se connecter";$("at").textContent=s?"Déjà un compte ? Se connecter":"Pas de compte ? Créer un compte";$("sub").textContent=s?"Crée ton compte FACTTOS en quelques secondes.":"Connecte-toi pour retrouver tes conversations.";$("ap").autocomplete=s?"new-password":"current-password";$("forgot").hidden=s;say($("am"),"")}
+function mode(s){signup=s;$("an").hidden=!s;$("an").required=s;$("ab").textContent=s?"Créer mon compte":"Se connecter";$("at").textContent=s?"Déjà un compte ? Se connecter":"Pas de compte ? Créer un compte";$("sub").textContent=s?"Crée ton compte FACTYOS en quelques secondes.":"Connecte-toi pour retrouver tes conversations.";$("ap").autocomplete=s?"new-password":"current-password";$("forgot").hidden=s;say($("am"),"")}
 $("at").onclick=function(){mode(!signup)};
 $("af").onsubmit=async function(e){
   e.preventDefault();say($("am"),"");$("ab").disabled=true;
@@ -1257,7 +1257,7 @@ async function startRec(c){
   if(!navigator.mediaDevices||!window.MediaRecorder){alert("L'enregistrement audio n'est pas disponible sur ce téléphone.");return}
   var stream;
   try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}
-  catch(e){alert("Autorise le micro pour FACTTOS dans les réglages du navigateur, puis réessaie.");return}
+  catch(e){alert("Autorise le micro pour FACTYOS dans les réglages du navigateur, puis réessaie.");return}
   var mime=recMime(),mr;
   try{mr=new MediaRecorder(stream,mime?{mimeType:mime,audioBitsPerSecond:32000}:{audioBitsPerSecond:32000})}
   catch(e){mr=new MediaRecorder(stream)}
@@ -1445,7 +1445,7 @@ async function handlePicked(c,f){
 }
 async function sendVideoFile(c,f){
   if(offlineMode){alert("Envoi de vidéo impossible hors connexion.");return}
-  if(f.size>16*1024*1024){alert("Vidéo trop lourde ("+(f.size/1048576).toFixed(1).replace(".",",")+" Mo). Maximum : 16 Mo. Choisis une vidéo plus courte, ou utilise « Filmer » dans FACTTOS.");return}
+  if(f.size>16*1024*1024){alert("Vidéo trop lourde ("+(f.size/1048576).toFixed(1).replace(".",",")+" Mo). Maximum : 16 Mo. Choisis une vidéo plus courte, ou utilise « Filmer » dans FACTYOS.");return}
   var pic=$("pic");if(pic){pic.textContent="⏳";pic.disabled=true}
   var url=URL.createObjectURL(f),v=document.createElement("video"),secs=0,thumb=null;
   try{
@@ -1490,7 +1490,7 @@ async function camStart(){
   try{
     if(vrec.stream)vrec.stream.getTracks().forEach(function(t){t.stop()});
     vrec.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:vrec.facing,width:{ideal:640},height:{ideal:480}},audio:true});
-  }catch(e){alert("Autorise la caméra et le micro pour FACTTOS dans les réglages du navigateur, puis réessaie.");return false}
+  }catch(e){alert("Autorise la caméra et le micro pour FACTYOS dans les réglages du navigateur, puis réessaie.");return false}
   var v=$("vrv");v.controls=false;v.muted=true;v.removeAttribute("src");v.srcObject=vrec.stream;v.play().catch(function(){});
   vrec.phase="preview";drawCam();return true;
 }
@@ -2541,7 +2541,7 @@ async function showCert(cid){
   if(r.error||!r.data){alert("Attestation indisponible.");return}
   certData=r.data;
   var d=new Date(certData.completed_at).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
-  $("ceb").innerHTML='<div class="cert"><div class="cert-lg">FACTTOS</div><div class="cert-t">Attestation de suivi</div><p>décernée à</p><div class="cert-n">'+esc(certData.name)+'</div><p>pour avoir suivi et terminé la formation</p><div class="cert-c">« '+esc(certData.title)+' »</div><p>le '+esc(d)+'</p><div class="cert-k">Code de vérification : <b>'+esc(certData.code)+'</b></div></div>';
+  $("ceb").innerHTML='<div class="cert"><div class="cert-lg">FACTYOS</div><div class="cert-t">Attestation de suivi</div><p>décernée à</p><div class="cert-n">'+esc(certData.name)+'</div><p>pour avoir suivi et terminé la formation</p><div class="cert-c">« '+esc(certData.title)+' »</div><p>le '+esc(d)+'</p><div class="cert-k">Code de vérification : <b>'+esc(certData.code)+'</b></div></div>';
   $("ce").showModal();
 }
 $("cecl").onclick=function(){$("ce").close()};
@@ -2550,7 +2550,7 @@ $("cedl").onclick=function(){
   var W=1200,H=850,cv=document.createElement("canvas");cv.width=W;cv.height=H;
   var x=cv.getContext("2d"),g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#7B2FF7");g.addColorStop(1,"#FF4D8D");
   x.fillStyle=g;x.fillRect(0,0,W,H);x.fillStyle="#fff";x.fillRect(30,30,W-60,H-60);
-  x.textAlign="center";x.fillStyle="#7B2FF7";x.font="bold 54px sans-serif";x.fillText("FACTTOS",W/2,120);
+  x.textAlign="center";x.fillStyle="#7B2FF7";x.font="bold 54px sans-serif";x.fillText("FACTYOS",W/2,120);
   x.fillStyle="#1E1033";x.font="bold 40px sans-serif";x.fillText("ATTESTATION DE SUIVI",W/2,200);
   x.font="28px sans-serif";x.fillStyle="#555";x.fillText("décernée à",W/2,290);
   x.fillStyle="#1E1033";x.font="bold 64px sans-serif";x.fillText(certData.name,W/2,380,W-160);
@@ -2559,9 +2559,9 @@ $("cedl").onclick=function(){
   var d=new Date(certData.completed_at).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
   x.fillStyle="#555";x.font="28px sans-serif";x.fillText("le "+d,W/2,640);
   x.font="24px sans-serif";x.fillText("Code de vérification : "+certData.code,W/2,740);
-  x.font="20px sans-serif";x.fillStyle="#999";x.fillText("Attestation de suivi délivrée par FACTTOS, sans valeur de diplôme officiel.",W/2,790);
+  x.font="20px sans-serif";x.fillStyle="#999";x.fillText("Attestation de suivi délivrée par FACTYOS, sans valeur de diplôme officiel.",W/2,790);
   cv.toBlob(function(b){
-    var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="attestation-facttos.png";
+    var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="attestation-factyos.png";
     document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
   },"image/png");
 };
