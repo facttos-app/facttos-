@@ -312,6 +312,19 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
 .avtop button{flex:none;width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:19px}
 .avbot{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:14px 14px calc(20px + env(safe-area-inset-bottom,0px));z-index:2}
 .av[data-uid]{cursor:zoom-in}
+dialog.appop{border:0;padding:0;background:transparent;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;margin:0;overflow:hidden}
+dialog.appop::backdrop{background:rgba(0,0,0,.8)}
+.apc{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,520px);background:var(--panel);color:var(--ink);border-radius:18px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.aph{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;color:#fff;font-weight:700;background:linear-gradient(rgba(0,0,0,.6),transparent);z-index:1}
+.aph span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aph button{flex:none;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.4);color:#fff}
+#api{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;background:#111;cursor:zoom-in}
+.apa{display:flex}
+.apa button{flex:1;padding:14px 8px;font-size:15px;color:var(--me);font-weight:600;border-top:1px solid var(--line)}
+.svtray{position:absolute;left:10px;right:10px;bottom:100%;margin-bottom:6px;max-height:40vh;overflow-y:auto;background:rgba(20,20,30,.95);border-radius:16px;padding:8px;display:flex;flex-wrap:wrap;gap:2px;z-index:5}
+.svtray button{width:46px;height:46px;font-size:26px;border-radius:10px;background:transparent;color:#fff}
+#fbtn{background:#fff!important;color:#1E1033;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.ccph{display:grid;place-items:center;width:100%;height:100%;background:#fff}
 </style>
 </head>
 <body>
@@ -369,7 +382,7 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
       <button type="button" class="prow" id="pfr"><span class="pi">👥</span><span class="pt2"><b>Gérer mes amis</b><small>Voir et retirer un ami</small></span><span class="pe">›</span></button>
       <button type="button" class="prow" id="psb"><span class="pi">⚙</span><span class="pt2"><b>Paramètres du compte</b><small>Recherche, confirmations de lecture, déconnexion, suppression</small></span><span class="pe">›</span></button>
       <a href="confidentialite.html" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:14px;color:var(--me);font-size:14px">Confidentialité et conditions</a>
-      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 40</p>
+      <p class="mute" style="text-align:center;margin:10px 0 24px">FACTTOS · version 42</p>
     </div>
     <button class="fab" id="new" aria-label="Nouvelle conversation">＋</button>
     </div>
@@ -402,10 +415,17 @@ dialog.pgdlg{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:no
   <div id="sab" style="max-height:65vh;overflow-y:auto;margin-top:8px"></div>
 </dialog>
 
-<dialog id="av" class="stdlg">
-  <img id="avi" alt="Photo de profil" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">
-  <div class="avtop"><span id="avn"></span><button type="button" id="avx" aria-label="Fermer">✕</button></div>
-  <div class="avbot"><button type="button" id="avp" class="send">👤 Voir le profil</button></div>
+<dialog id="apv" class="appop">
+  <div class="apc">
+    <div class="aph"><span id="apn"></span><button type="button" id="apx" aria-label="Fermer">✕</button></div>
+    <img id="api" alt="Photo de profil">
+    <div class="apa" id="apa"><button type="button" id="apm">💬 Écrire</button><button type="button" id="apq">👤 Profil</button></div>
+  </div>
+</dialog>
+
+<dialog id="apf" class="stdlg">
+  <img id="apfi" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">
+  <div class="avtop"><span id="apfn"></span><button type="button" id="apfx" aria-label="Fermer">✕</button></div>
 </dialog>
 
 <dialog id="fm2">
@@ -630,7 +650,7 @@ async function start(user,off){
   await loadOutbox();touchPresence();initActu();
   if(off){offlineMode=true;await loadFromCache();renderChat();updateOfflineUI();return}
   try{
-    await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();renderChat();listen();
+    await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();renderChat();listen();if(CALLS)CALLS.listen();
     flushOutbox();prefetchMsgs();
   }catch(err){
     if(isNetErr(err)){offlineMode=true;await loadFromCache();renderChat();updateOfflineUI()}
@@ -767,7 +787,7 @@ function renderChat(){
   var om=$("msgs"),atBottom=!om||renderedFor!==c.id||forceBottom||om.scrollHeight-om.scrollTop-om.clientHeight<80,oldTop=om?om.scrollTop:0;forceBottom=false;
   var other=c.group?null:c.members.filter(function(u){return u!==me.id})[0],iBlocked=!!other&&blocked.indexOf(other)>=0;
   var sub=c.group?c.members.map(function(u){return u==me.id?"Toi":(names[u]||"?")}).join(", "):"Conversation privée";
-  var h=(offlineMode?'<div class="offb">📴 Hors connexion : tes messages partiront dès que le réseau revient.</div>':'')+'<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div class="tt"><div class="t">'+esc(title(c))+'</div><div class="s" id="csub" data-d="'+esc(sub)+'">'+esc(sub)+'</div></div><button class="icon-btn" id="more" aria-label="Plus d\'options">⋮</button></div><div class="msgs" id="msgs">';
+  var h=(offlineMode?'<div class="offb">📴 Hors connexion : tes messages partiront dès que le réseau revient.</div>':'')+'<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div class="tt"><div class="t">'+esc(title(c))+'</div><div class="s" id="csub" data-d="'+esc(sub)+'">'+esc(sub)+'</div></div>'+(other&&!iBlocked&&!offlineMode&&CALLS&&CALLS.ok()?'<button class="icon-btn" id="callbtn" aria-label="Appel audio">📞</button>':'')+'<button class="icon-btn" id="more" aria-label="Plus d\'options">⋮</button></div><div class="msgs" id="msgs">';
   var list=msgs[c.id]||[],lastDay="",lastSender=null,sepId=null;
   if(c.divN>0){var cn=0;for(var qi=list.length-1;qi>=0;qi--){var mq=list[qi];if(mq.sender_id!==me.id&&!mq.pending&&blocked.indexOf(mq.sender_id)<0){cn++;if(cn===c.divN){sepId=mq.id;break}}}}
   if(!list.length)h+='<div class="empty">Dis bonjour 👋</div>';
@@ -808,6 +828,7 @@ function renderChat(){
   },{passive:true});
   hydrate(box);
   $("back").onclick=function(){if(history.state&&history.state.fchat)history.back();else closeChat()};
+  if($("callbtn"))$("callbtn").onclick=function(){CALLS.start(c,other)};
   $("more").onclick=function(){
     var it=[];
     if(c.group){
@@ -1204,7 +1225,7 @@ async function goOnline(){
     await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();
     await flushOutbox();await reloadCurrent();
     if(chan){try{sb.removeChannel(chan)}catch(e){}chan=null}
-    listen();updateOfflineUI();renderList();renderChat();
+    listen();if(CALLS)CALLS.listen();updateOfflineUI();renderList();renderChat();
   }catch(e){offlineMode=true}
   finally{goingOnline=false}
 }
@@ -2588,6 +2609,7 @@ function statsTot(m){
   return (v||r||p)?" · 👁 "+v+" · ❤ "+r+" · 💬 "+p:"";
 }
 function statsLabel(s){var x=stStats[s.id]||{views:0,reactions:0,replies:0};return "👁 "+x.views+" · ❤ "+x.reactions+" · 💬 "+x.replies+" ›"}
+var STORY_EMO="👍 ❤️ 😂 😮 😢 🙏 🔥 😍 🥰 😘 😎 🤩 😊 😁 🤣 😅 😉 🤗 🤔 😳 😱 😭 😡 🥺 👏 🙌 💪 👌 ✌️ 🤝 💯 ✨ 🎉 🎁 🌹 💐 ☀️ ⭐ 🌟 💔 💕 💖 🤍 🧡 💛 💚 💙 💜 🖤".split(" ");
 function pauseStory(){clearTimeout(stTimer);$("svp").classList.add("paused")}
 function resumeStory(){$("svp").classList.remove("paused");startStoryTimer()}
 function recordView(s){
@@ -2605,14 +2627,17 @@ function renderStoryBar(s){
   }
   var mine=stReact[s.id];
   function q(e){return '<button type="button" class="svq'+(mine===e?' on':'')+'" data-r="'+e+'">'+e+'</button>'}
-  b.innerHTML='<div class="svrow"><input id="svr" maxlength="300" placeholder="Répondre" autocomplete="off"><button type="button" id="svs" hidden aria-label="Envoyer">➤</button>'+q("😍")+q("😂")+'<button type="button" class="svq'+(mine==="❤️"?' on':'')+'" data-r="❤️" aria-label="J\'aime">'+(mine==="❤️"?"❤️":"🤍")+'</button></div>';
+  b.innerHTML='<div class="svrow"><input id="svr" maxlength="300" placeholder="Répondre" autocomplete="off"><button type="button" id="svs" hidden aria-label="Envoyer">➤</button>'+q("😍")+q("😂")+'<button type="button" class="svq'+(mine==="❤️"?' on':'')+'" data-r="❤️" aria-label="J\'aime">'+(mine==="❤️"?"❤️":"🤍")+'</button><button type="button" class="svq" id="svmore" aria-label="Plus d\'emojis">＋</button></div><div class="svtray" id="svtray" hidden>'+STORY_EMO.map(function(e){return '<button type="button" data-r="'+e+'">'+e+'</button>'}).join("")+'</div>';
   var inp=$("svr");
   inp.onfocus=pauseStory;
   inp.onblur=function(){setTimeout(function(){if(stView&&$("svr")&&!$("svr").value)resumeStory()},200)};
   inp.oninput=function(){$("svs").hidden=!inp.value.trim()};
   inp.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();sendStoryReply(s)}};
   $("svs").onclick=function(){sendStoryReply(s)};
-  b.onclick=function(e){var qb=e.target.closest("button[data-r]");if(qb)reactStory(s,qb.dataset.r)};
+  b.onclick=function(e){
+    if(e.target.closest("#svmore")){var tr=$("svtray");tr.hidden=!tr.hidden;if(!tr.hidden)pauseStory();else resumeStory();return}
+    var qb=e.target.closest("button[data-r]");if(qb)reactStory(s,qb.dataset.r);
+  };
 }
 async function sendStoryReply(s){
   var inp=$("svr");if(!inp)return;
@@ -2643,6 +2668,7 @@ async function reactStory(s,e){
   var c=await sb.rpc("status_chat_reply",{sid:s.id,txt:e});
   toast(c.error?"Réaction envoyée "+e:"Réaction envoyée dans votre conversation "+e);
   renderStoryBar(s);
+  if(stView&&$("svp").classList.contains("paused")&&!(document.activeElement&&document.activeElement.id==="svr"))resumeStory();
 }
 async function openActivity(s){
   pauseStory();
@@ -2674,19 +2700,30 @@ $("sab").onclick=function(e){
 /* ---- agrandir la photo de profil ---- */
 function openAvatarViewer(uid,name){
   var p=avatarOf[uid];if(!p)return;
-  $("avi").src=avatarUrl(p);$("avn").textContent=name||"";
-  $("avp").hidden=(uid===me.id);$("avp").dataset.u=uid;
-  $("av").showModal();
+  var u=avatarUrl(p);
+  $("api").src=u;$("apfi").src=u;$("apn").textContent=name||"";$("apfn").textContent=name||"";
+  $("apa").hidden=(uid===me.id);$("apm").dataset.u=uid;$("apq").dataset.u=uid;
+  $("apv").showModal();
 }
 document.addEventListener("click",function(e){
   var a=e.target.closest&&e.target.closest(".av[data-uid]");
-  if(!a||a.closest("#sv")||a.closest("#av"))return;
+  if(!a||a.closest("#sv")||a.closest("#apv")||a.closest("#apf"))return;
   e.stopPropagation();e.preventDefault();
   openAvatarViewer(a.dataset.uid,a.dataset.n);
 },true);
-$("avx").onclick=function(){$("av").close()};
-$("av").onclick=function(e){if(e.target===this||e.target.id==="avi")$("av").close()};
-$("avp").onclick=function(){var u=this.dataset.u;$("av").close();if(u)viewProfile(u)};
+$("apx").onclick=function(){$("apv").close()};
+$("apv").onclick=function(e){if(e.target===this)$("apv").close()};
+$("api").onclick=function(){$("apf").showModal()};
+$("apf").onclick=function(){$("apf").close()};
+$("apq").onclick=function(){var u=this.dataset.u;$("apv").close();if(u)viewProfile(u)};
+$("apm").onclick=function(){
+  var u=this.dataset.u;if(!u)return;
+  var isF=friends.some(function(f){return f.status==="accepted"&&f.other_id===u});
+  var ex=convs.some(function(c){return !c.group&&c.members.indexOf(u)>=0});
+  $("apv").close();
+  if(!ex&&!isF){alert("Ajoute cette personne en ami pour pouvoir lui écrire.");return}
+  startChat(u);
+};
 /* ---- photos : copie locale ---- */
 function photoHtml(m){
   if(!m.image_path)return"";
@@ -3004,6 +3041,275 @@ $("rabl").onclick=async function(){
 };
 
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+
+
+/* ================= APPELS AUDIO (WebRTC) =================
+   Bloc autonome : ne touche à aucune autre fonction de l'app.
+   Signalisation : table public.calls (Realtime) + canal broadcast "call:<id>". */
+var CALLS=(function(){
+  var ICE=[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}
+    /* TURN (à ajouter plus tard) : ,{urls:"turn:HOTE:3478",username:"...",credential:"..."} */];
+  var call=null,lock=false,evt=null,ac=null,tone=null,styled=false;
+
+  function ok(){return !!(window.RTCPeerConnection&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.isSecureContext)}
+
+  /* ---------- sons ---------- */
+  function actx(){try{if(!ac){var A=window.AudioContext||window.webkitAudioContext;if(A)ac=new A()}if(ac&&ac.state==="suspended")ac.resume()}catch(e){}return ac}
+  document.addEventListener("pointerdown",function(){actx()},{passive:true});
+  function beep(f,d){
+    var a=actx();if(!a)return;
+    try{var o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
+      o.frequency.value=f;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.12,t+0.03);
+      g.gain.setValueAtTime(0.12,t+d-0.06);g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+      o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+0.02)}catch(e){}
+  }
+  function stopTone(){if(tone){clearInterval(tone);tone=null}try{if(navigator.vibrate)navigator.vibrate(0)}catch(e){}}
+  function startTone(kind){
+    stopTone();
+    var fn=kind==="in"
+      ?function(){beep(480,0.35);setTimeout(function(){beep(480,0.35)},500);try{if(navigator.vibrate)navigator.vibrate([300,200,300])}catch(e){}}
+      :function(){beep(425,1)};
+    fn();tone=setInterval(fn,kind==="in"?2500:3000);
+  }
+
+  /* ---------- interface ---------- */
+  function ensureUI(){
+    if(!styled){
+      styled=true;
+      var st=document.createElement("style");
+      st.textContent='dialog.calldlg{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;margin:0;border:0;border-radius:0;padding:calc(env(safe-area-inset-top,0px) + 72px) 24px calc(env(safe-area-inset-bottom,0px) + 40px);background:linear-gradient(160deg,#2B1250,#7B2FF7 60%,#FF4D8D);color:#fff;text-align:center}'
+        +'dialog.calldlg[open]{display:flex;flex-direction:column;align-items:center;justify-content:space-between}'
+        +'dialog.calldlg::backdrop{background:#150B26}'
+        +'.cl-av{width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.18);display:grid;place-items:center;font-size:52px;font-weight:700;margin:0 auto 18px}'
+        +'.cl-name{font-size:26px;font-weight:700;word-break:break-word}'
+        +'.cl-st{margin-top:8px;font-size:17px;opacity:.85;min-height:24px}'
+        +'.cl-btns{display:flex;gap:44px;justify-content:center;align-items:flex-start}'
+        +'.cl-c{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px}'
+        +'.cl-b{width:68px;height:68px;border-radius:50%;font-size:28px;display:grid;place-items:center;color:#fff}'
+        +'.cl-b.red{background:#E5334B}.cl-b.green{background:#1DB954}.cl-b.glass{background:rgba(255,255,255,.22)}';
+      document.head.appendChild(st);
+    }
+    if($("calld"))return;
+    var d=document.createElement("dialog");d.id="calld";d.className="calldlg";
+    d.innerHTML='<div><div class="cl-av" id="cl-av"></div><div class="cl-name" id="cl-name"></div><div class="cl-st" id="cl-st"></div></div>'
+      +'<div class="cl-btns" id="cl-btns"></div><audio id="cl-audio" autoplay playsinline style="position:absolute;width:0;height:0;opacity:0"></audio>';
+    d.addEventListener("cancel",function(e){e.preventDefault()});
+    document.body.appendChild(d);
+  }
+  function setSt(t){var e=$("cl-st");if(e)e.textContent=t||""}
+  function showUI(){
+    ensureUI();
+    $("cl-name").textContent=call.name||"";
+    $("cl-av").textContent=String(call.name||"?").trim().charAt(0).toUpperCase();
+    var d=$("calld");if(!d.open)d.showModal();
+    renderUI();
+  }
+  function renderUI(){
+    if(!call)return;
+    var b=$("cl-btns"),s=call.state;
+    function btn(id,cls,ic,lb){return '<div class="cl-c"><button type="button" class="cl-b '+cls+'" id="'+id+'">'+ic+'</button><span>'+lb+'</span></div>'}
+    if(s==="ring-in"){
+      b.innerHTML=btn("cl-no","red","✖","Refuser")+btn("cl-ok","green","📞","Répondre");
+      $("cl-no").onclick=function(){hangup()};
+      $("cl-ok").onclick=function(){accept()};
+      setSt("Appel audio entrant…");
+    }else{
+      b.innerHTML=btn("cl-mu","glass",call.muted?"🔇":"🎤",call.muted?"Micro coupé":"Couper le micro")+btn("cl-end","red","✖","Raccrocher");
+      $("cl-end").onclick=function(){hangup()};
+      $("cl-mu").onclick=function(){
+        if(!call||!call.stream)return;
+        call.muted=!call.muted;
+        call.stream.getAudioTracks().forEach(function(t){t.enabled=!call.muted});
+        renderUI();
+      };
+      if(s==="ringing")setSt("Appel en cours…");
+      else if(s==="connecting")setSt("Connexion…");
+      else if(s==="live")tick();
+    }
+  }
+  function tick(){
+    if(!call||!call.t0)return;
+    var s=Math.floor((Date.now()-call.t0)/1000),m=Math.floor(s/60);
+    setSt(m+":"+(s%60<10?"0":"")+(s%60));
+  }
+
+  /* ---------- nettoyage ---------- */
+  function cleanup(msg){
+    var c=call;call=null;lock=false;stopTone();
+    if(!c)return;
+    ["to","ct","rt","dc","timer"].forEach(function(k){if(c[k]){clearTimeout(c[k]);clearInterval(c[k]);c[k]=null}});
+    try{if(c.stream)c.stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
+    try{if(c.pc){c.pc.onconnectionstatechange=null;c.pc.ontrack=null;c.pc.onicecandidate=null;c.pc.close()}}catch(e){}
+    try{if(c.wl&&c.wl.release)c.wl.release()}catch(e){}
+    var ch=c.ch;if(ch)setTimeout(function(){try{sb.removeChannel(ch)}catch(e){}},900);
+    var a=$("cl-audio");if(a){try{a.srcObject=null}catch(e){}}
+    var d=$("calld");if(d&&d.open)d.close();
+    if(msg)toast(msg);
+  }
+
+  /* ---------- WebRTC ---------- */
+  function send(o){if(call&&call.ch){try{call.ch.send({type:"broadcast",event:"sig",payload:o})}catch(e){}}}
+  async function mic(){
+    try{return await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}})}
+    catch(e){alert(/NotAllowed|Denied|Permission/i.test((e.name||"")+(e.message||""))?"Autorise le micro pour passer ou recevoir un appel.":"Micro indisponible sur cet appareil.");return null}
+  }
+  function peer(){
+    var pc=new RTCPeerConnection({iceServers:ICE});
+    call.pc=pc;call.pend=[];
+    call.stream.getTracks().forEach(function(t){pc.addTrack(t,call.stream)});
+    pc.onicecandidate=function(e){if(e.candidate)send({t:"ice",d:e.candidate.toJSON?e.candidate.toJSON():e.candidate})};
+    pc.ontrack=function(e){
+      var a=$("cl-audio");if(!a)return;
+      a.srcObject=(e.streams&&e.streams[0])||new MediaStream([e.track]);
+      var p=a.play();if(p&&p.catch)p.catch(function(){});
+    };
+    pc.onconnectionstatechange=function(){
+      if(!call||call.pc!==pc)return;
+      var s=pc.connectionState;
+      if(s==="connected"){
+        if(call.dc){clearTimeout(call.dc);call.dc=null}
+        if(call.ct){clearTimeout(call.ct);call.ct=null}
+        stopTone();
+        if(!call.t0){call.t0=Date.now();call.timer=setInterval(tick,1000)}
+        call.state="live";renderUI();tick();
+        try{if(navigator.wakeLock)navigator.wakeLock.request("screen").then(function(w){if(call)call.wl=w;else w.release()},function(){})}catch(e){}
+      }else if(s==="disconnected"){
+        setSt("Reconnexion…");
+        if(!call.dc)call.dc=setTimeout(function(){if(call&&call.pc===pc&&pc.connectionState!=="connected")hangup("Connexion perdue")},12000);
+      }else if(s==="failed"){hangup("Connexion impossible")}
+    };
+  }
+  function join(cb){
+    var done=false;
+    call.ch=sb.channel("call:"+call.id,{config:{broadcast:{self:false}}});
+    call.ch.on("broadcast",{event:"sig"},function(p){onSig(p.payload||{})})
+      .subscribe(function(st){if(st==="SUBSCRIBED"&&!done){done=true;if(cb)cb()}});
+  }
+  async function flush(){
+    var pc=call&&call.pc;if(!pc)return;
+    var l=call.pend;call.pend=[];
+    for(var i=0;i<l.length;i++){try{await pc.addIceCandidate(l[i])}catch(e){}}
+  }
+  async function onSig(m){
+    if(!call||!call.pc)return;
+    var pc=call.pc;
+    try{
+      if(m.t==="ready"&&call.role==="out"){
+        if(!call.offer){var o=await pc.createOffer();await pc.setLocalDescription(o);call.offer=pc.localDescription}
+        send({t:"offer",d:call.offer});
+      }else if(m.t==="offer"&&call.role==="in"){
+        if(call.gotOffer)return;call.gotOffer=true;
+        await pc.setRemoteDescription(m.d);await flush();
+        var an=await pc.createAnswer();await pc.setLocalDescription(an);
+        send({t:"answer",d:pc.localDescription});
+      }else if(m.t==="answer"&&call.role==="out"){
+        if(pc.signalingState!=="have-local-offer")return;
+        await pc.setRemoteDescription(m.d);await flush();
+      }else if(m.t==="ice"){
+        if(pc.remoteDescription&&pc.remoteDescription.type)await pc.addIceCandidate(m.d);else call.pend.push(m.d);
+      }else if(m.t==="bye"){
+        cleanup("Appel terminé");
+      }
+    }catch(e){}
+  }
+
+  /* ---------- actions ---------- */
+  function errMsg(m){
+    if(/NOT_FRIENDS/.test(m))return "Vous devez être amis pour vous appeler.";
+    if(/BUSY/.test(m))return "Cette personne est déjà en appel.";
+    return m;
+  }
+  async function start(c,other){
+    if(call||lock){toast("Un appel est déjà en cours");return}
+    if(offlineMode){alert("Connexion internet nécessaire.");return}
+    if(!ok()){alert("Les appels ne sont pas disponibles sur ce navigateur.");return}
+    lock=true;actx();
+    var st=await mic();
+    if(!st){lock=false;return}
+    var r=await sb.rpc("call_start",{cid:c.id});
+    if(r.error){st.getTracks().forEach(function(t){t.stop()});lock=false;alert(errMsg(r.error.message));return}
+    call={id:r.data,cid:c.id,other:other,name:title(c),role:"out",state:"ringing",stream:st,muted:false,t0:0};
+    lock=false;
+    showUI();startTone("out");peer();join();
+    call.to=setTimeout(function(){if(call&&call.state==="ringing")hangup("Pas de réponse",true)},45000);
+  }
+  async function incoming(row){
+    if(call||lock){try{await sb.rpc("call_end",{call_id:row.id})}catch(e){}return}
+    var nm=names[row.caller_id]||"";
+    call={id:row.id,cid:row.conversation_id,other:row.caller_id,name:nm||"Appel entrant",role:"in",state:"ring-in",muted:false,t0:0};
+    ensureUI();showUI();startTone("in");
+    call.to=setTimeout(function(){if(call&&call.state==="ring-in")cleanup("Appel manqué")},50000);
+    if(!nm){
+      try{var q=await sb.from("profiles").select("id,name").eq("id",row.caller_id).single();
+        if(q.data){names[q.data.id]=q.data.name;if(call&&call.id===row.id){call.name=q.data.name;$("cl-name").textContent=q.data.name;$("cl-av").textContent=String(q.data.name||"?").trim().charAt(0).toUpperCase()}}}catch(e){}
+    }
+  }
+  async function accept(){
+    if(!call||call.state!=="ring-in"||call.acc)return;
+    call.acc=true;stopTone();actx();
+    var id=call.id,st=await mic();
+    if(!st){hangup();return}
+    if(!call||call.id!==id){st.getTracks().forEach(function(t){t.stop()});return}
+    call.stream=st;
+    if(call.to){clearTimeout(call.to);call.to=null}
+    var r=await sb.rpc("call_answer",{call_id:id});
+    if(r.error){cleanup("Appel terminé");return}
+    if(!call)return;
+    call.state="connecting";renderUI();
+    peer();
+    var n=0;
+    join(function(){
+      var again=function(){
+        if(!call||call.gotOffer||n++>10)return;
+        send({t:"ready"});call.rt=setTimeout(again,1500);
+      };
+      again();
+    });
+    call.ct=setTimeout(function(){if(call&&call.state!=="live")hangup("Connexion impossible")},25000);
+  }
+  async function hangup(msg,timedOut){
+    if(!call||call.ending)return;
+    call.ending=true;
+    var id=call.id;
+    send({t:"bye"});
+    cleanup(msg||"");
+    try{await sb.rpc("call_end",{call_id:id,timed_out:!!timedOut})}catch(e){}
+  }
+
+  /* ---------- événements base de données ---------- */
+  function onRow(kind,r){
+    if(!me||!r)return;
+    if(kind==="I"){
+      if(r.callee_id===me.id&&r.status==="ringing")incoming(r);
+      return;
+    }
+    if(!call||call.id!==r.id)return;
+    if(r.status==="active"&&call.role==="out"&&call.state==="ringing"){
+      stopTone();call.state="connecting";
+      if(call.to){clearTimeout(call.to);call.to=null}
+      renderUI();
+      call.ct=setTimeout(function(){if(call&&call.state!=="live")hangup("Connexion impossible")},25000);
+    }else if(r.status==="declined"){cleanup("Appel refusé")}
+    else if(r.status==="missed"||r.status==="cancelled"){cleanup("Appel manqué")}
+    else if(r.status==="ended"){cleanup("Appel terminé")}
+  }
+  async function catchUp(){
+    try{
+      var since=new Date(Date.now()-45000).toISOString();
+      var r=await sb.from("calls").select("*").eq("callee_id",me.id).eq("status","ringing").gt("created_at",since).order("created_at",{ascending:false}).limit(1);
+      if(r.data&&r.data[0]&&!call)incoming(r.data[0]);
+    }catch(e){}
+  }
+  function listen(){
+    if(!me||evt)return;
+    ensureUI();
+    evt=sb.channel("facttos-calls")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"calls"},function(p){onRow("I",p.new)})
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"calls"},function(p){onRow("U",p.new)})
+      .subscribe(function(st){if(st==="SUBSCRIBED")catchUp()});
+  }
+  return {ok:ok,start:start,listen:listen};
+})();
 
 /* ---- Démarrage ---- */
 (async function(){
