@@ -650,7 +650,7 @@ async function start(user,off){
   await loadOutbox();touchPresence();initActu();
   if(off){offlineMode=true;await loadFromCache();renderChat();updateOfflineUI();return}
   try{
-    await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();renderChat();listen();if(CALLS)CALLS.listen();
+    await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();renderChat();listen();if(CALLS)CALLS.listen();if(GCALLS)GCALLS.listen();
     flushOutbox();prefetchMsgs();
   }catch(err){
     if(isNetErr(err)){offlineMode=true;await loadFromCache();renderChat();updateOfflineUI()}
@@ -787,7 +787,7 @@ function renderChat(){
   var om=$("msgs"),atBottom=!om||renderedFor!==c.id||forceBottom||om.scrollHeight-om.scrollTop-om.clientHeight<80,oldTop=om?om.scrollTop:0;forceBottom=false;
   var other=c.group?null:c.members.filter(function(u){return u!==me.id})[0],iBlocked=!!other&&blocked.indexOf(other)>=0;
   var sub=c.group?c.members.map(function(u){return u==me.id?"Toi":(names[u]||"?")}).join(", "):"Conversation privée";
-  var h=(offlineMode?'<div class="offb">📴 Hors connexion : tes messages partiront dès que le réseau revient.</div>':'')+'<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div class="tt"><div class="t">'+esc(title(c))+'</div><div class="s" id="csub" data-d="'+esc(sub)+'">'+esc(sub)+'</div></div>'+(other&&!iBlocked&&!offlineMode&&CALLS&&CALLS.ok()?'<button class="icon-btn" id="callbtn" aria-label="Appel audio">📞</button><button class="icon-btn" id="callvbtn" aria-label="Appel vidéo">📹</button>':'')+'<button class="icon-btn" id="more" aria-label="Plus d\'options">⋮</button></div><div class="msgs" id="msgs">';
+  var h=(offlineMode?'<div class="offb">📴 Hors connexion : tes messages partiront dès que le réseau revient.</div>':'')+'<div class="top"><button class="icon-btn back" id="back" aria-label="Retour">←</button>'+avatar(c)+'<div class="tt"><div class="t">'+esc(title(c))+'</div><div class="s" id="csub" data-d="'+esc(sub)+'">'+esc(sub)+'</div></div>'+(other&&!iBlocked&&!offlineMode&&CALLS&&CALLS.ok()?'<button class="icon-btn" id="callbtn" aria-label="Appel audio">📞</button><button class="icon-btn" id="callvbtn" aria-label="Appel vidéo">📹</button>':'')+(c.group&&!offlineMode&&GCALLS&&GCALLS.ok()?'<button class="icon-btn" id="gcallbtn" aria-label="Appel de groupe audio">📞</button><button class="icon-btn" id="gcallvbtn" aria-label="Appel de groupe vidéo">📹</button>':'')+'<button class="icon-btn" id="more" aria-label="Plus d\'options">⋮</button></div><div class="msgs" id="msgs">';
   var list=msgs[c.id]||[],lastDay="",lastSender=null,sepId=null;
   if(c.divN>0){var cn=0;for(var qi=list.length-1;qi>=0;qi--){var mq=list[qi];if(mq.sender_id!==me.id&&!mq.pending&&blocked.indexOf(mq.sender_id)<0){cn++;if(cn===c.divN){sepId=mq.id;break}}}}
   if(!list.length)h+='<div class="empty">Dis bonjour 👋</div>';
@@ -830,6 +830,9 @@ function renderChat(){
   $("back").onclick=function(){if(history.state&&history.state.fchat)history.back();else closeChat()};
   if($("callbtn"))$("callbtn").onclick=function(){CALLS.start(c,other)};
   if($("callvbtn"))$("callvbtn").onclick=function(){CALLS.start(c,other,true)};
+  if($("gcallbtn"))$("gcallbtn").onclick=function(){GCALLS.start(c,false)};
+  if($("gcallvbtn"))$("gcallvbtn").onclick=function(){GCALLS.start(c,true)};
+  if(c.group&&GCALLS)GCALLS.decorate(c);
   $("more").onclick=function(){
     var it=[];
     if(c.group){
@@ -1226,7 +1229,7 @@ async function goOnline(){
     await loadBlocks();await loadMe();try{await loadFriends()}catch(e){}await loadSettings();await loadConvs();
     await flushOutbox();await reloadCurrent();
     if(chan){try{sb.removeChannel(chan)}catch(e){}chan=null}
-    listen();if(CALLS)CALLS.listen();updateOfflineUI();renderList();renderChat();
+    listen();if(CALLS)CALLS.listen();if(GCALLS)GCALLS.listen();updateOfflineUI();renderList();renderChat();
   }catch(e){offlineMode=true}
   finally{goingOnline=false}
 }
@@ -3318,6 +3321,7 @@ var CALLS=(function(){
   }
   async function start(c,other,video){
     if(call||lock){toast("Un appel est déjà en cours");return}
+    if(GCALLS&&GCALLS.busy()){toast("Un appel de groupe est en cours");return}
     if(offlineMode){alert("Connexion internet nécessaire.");return}
     if(!ok()){alert("Les appels ne sont pas disponibles sur ce navigateur.");return}
     lock=true;actx();
@@ -3331,7 +3335,7 @@ var CALLS=(function(){
     call.to=setTimeout(function(){if(call&&call.state==="ringing")hangup("Pas de réponse",true)},45000);
   }
   async function incoming(row){
-    if(call||lock){try{await sb.rpc("call_end",{call_id:row.id})}catch(e){}return}
+    if(call||lock||(GCALLS&&GCALLS.busy())){try{await sb.rpc("call_end",{call_id:row.id})}catch(e){}return}
     var nm=names[row.caller_id]||"";
     call={id:row.id,cid:row.conversation_id,other:row.caller_id,name:nm||"Appel entrant",role:"in",state:"ring-in",muted:false,t0:0,video:!!row.video,spk:!!row.video,face:"user"};
     ensureUI();showUI();startTone("in");
@@ -3405,7 +3409,425 @@ var CALLS=(function(){
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"calls"},function(p){onRow("U",p.new)})
       .subscribe(function(st){if(st==="SUBSCRIBED")catchUp()});
   }
-  return {ok:ok,start:start,listen:listen};
+  return {ok:ok,start:start,listen:listen,busy:function(){return !!(call||lock)},ring:startTone,stopRing:stopTone,actx:actx,ice:ICE};
+})();
+
+
+/* ================= APPELS DE GROUPE (WebRTC, maillage) =================
+   Bloc autonome. Audio : jusqu'à 10 personnes. Vidéo : jusqu'à 4 (limites appliquées côté SQL).
+   Signalisation : tables group_calls / group_call_members + canal Realtime "gcall:<id>" (broadcast + presence). */
+var GCALLS=(function(){
+  var g=null,lock=false,evt=null,styled=false,act={},chk={},invTimer=null,invId=null;
+
+  function ok(){return CALLS.ok()}
+  function ini(n){return String(n||"?").trim().charAt(0).toUpperCase()}
+
+  /* ---------- styles et fenêtre ---------- */
+  function ensureStyle(){
+    if(styled)return;styled=true;
+    var st=document.createElement("style");
+    st.textContent=
+      'dialog.gcdlg{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;margin:0;border:0;border-radius:0;padding:calc(env(safe-area-inset-top,0px) + 12px) 10px calc(env(safe-area-inset-bottom,0px) + 14px);background:#150B26;color:#fff}'
+      +'dialog.gcdlg[open]{display:flex;flex-direction:column;gap:10px}'
+      +'dialog.gcdlg::backdrop{background:#150B26}'
+      +'.gc-top{text-align:center}.gc-title{font-weight:700;font-size:18px}.gc-sub{font-size:13px;opacity:.8}'
+      +'.ggrid{flex:1;min-height:0;display:grid;gap:6px;grid-template-columns:repeat(var(--c,2),1fr);grid-auto-rows:1fr}'
+      +'.gt{position:relative;overflow:hidden;border-radius:14px;background:#2A1A47;min-height:0}'
+      +'.gt video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}'
+      +'.gt:not(.hv) video{opacity:0}'
+      +'.gt.me.mir video{transform:scaleX(-1)}'
+      +'.gt .gav{position:absolute;inset:0;display:grid;place-items:center;font-size:40px;font-weight:700}'
+      +'.gt.hv .gav{display:none}'
+      +'.gt .gnm{position:absolute;left:8px;bottom:6px;font-size:12px;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:10px;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+      +'.gt.bad{outline:2px solid #E5334B}'
+      +'.gc-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}'
+      +'.gc-c{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px}'
+      +'.gc-b{width:54px;height:54px;border-radius:50%;font-size:22px;display:grid;place-items:center;color:#fff}'
+      +'.gc-b.red{background:#E5334B}.gc-b.green{background:#1DB954}.gc-b.glass{background:rgba(255,255,255,.22)}'
+      +'.gcbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 14px;background:linear-gradient(90deg,#7B2FF7,#FF4D8D);color:#fff;font-weight:600;font-size:14px}'
+      +'.gcbar button{background:#fff;color:#7B2FF7;border-radius:16px;padding:6px 14px;font-weight:700}'
+      +'.gcinv{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:99999;background:#2B1250;color:#fff;border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;box-shadow:0 6px 24px rgba(0,0,0,.45)}'
+      +'.gcinv b{display:block}.gcinv button{border-radius:16px;padding:8px 14px;font-weight:700;color:#fff}'
+      +'.gcinv .ok{background:#1DB954}.gcinv .no{background:rgba(255,255,255,.2)}';
+    document.head.appendChild(st);
+  }
+  function ensureUI(){
+    ensureStyle();
+    if($("gcalld"))return;
+    var d=document.createElement("dialog");d.id="gcalld";d.className="gcdlg";
+    d.innerHTML='<div class="gc-top"><div class="gc-title" id="gc-title"></div><div class="gc-sub" id="gc-sub"></div></div><div class="ggrid" id="gc-grid"></div><div class="gc-btns" id="gc-btns"></div>';
+    d.addEventListener("cancel",function(e){e.preventDefault()});
+    document.body.appendChild(d);
+  }
+  function layout(){
+    if(!g)return;
+    var n=Object.keys(g.tiles).length,wide=window.innerWidth>=700;
+    var cols=n<=1?1:(n===2?(wide?2:1):(n<=6?2:3));
+    var gr=$("gc-grid");if(gr)gr.style.setProperty("--c",cols);
+    var s=Math.floor((Date.now()-g.t0)/1000),m=Math.floor(s/60);
+    var sub=$("gc-sub");if(sub)sub.textContent=n+" participant"+(n>1?"s":"")+" · "+m+":"+(s%60<10?"0":"")+(s%60);
+  }
+  function ensureTile(u,nm,mine){
+    if(!g)return null;
+    var t=g.tiles[u];
+    if(t){if(nm){t.querySelector(".gnm").textContent=nm;t.querySelector(".gav").textContent=ini(nm)}return t}
+    t=document.createElement("div");t.className="gt"+(mine?" me mir":"");
+    t.innerHTML='<video autoplay playsinline'+(mine?' muted':'')+'></video><div class="gav"></div><div class="gnm"></div>';
+    t.querySelector(".gav").textContent=ini(nm);
+    t.querySelector(".gnm").textContent=nm||"";
+    if(mine)t.querySelector("video").muted=true;
+    $("gc-grid").appendChild(t);g.tiles[u]=t;layout();
+    return t;
+  }
+  function removeTile(u){
+    if(!g)return;
+    var t=g.tiles[u];if(t){t.remove();delete g.tiles[u]}
+    layout();
+  }
+
+  /* ---------- média ---------- */
+  async function media(video){
+    var A={echoCancellation:true,noiseSuppression:true,autoGainControl:true};
+    try{
+      return await navigator.mediaDevices.getUserMedia(video
+        ?{audio:A,video:{facingMode:"user",width:{ideal:320},height:{ideal:240},frameRate:{ideal:15,max:20}}}
+        :{audio:A});
+    }catch(e){
+      var denied=/NotAllowed|Denied|Permission/i.test((e.name||"")+(e.message||""));
+      if(video){
+        try{var s2=await navigator.mediaDevices.getUserMedia({audio:A});toast("Caméra indisponible : appel sans ta vidéo");return s2}catch(e2){}
+      }
+      alert(denied?"Autorise le micro et la caméra pour rejoindre l'appel.":"Micro ou caméra indisponible sur cet appareil.");
+      return null;
+    }
+  }
+  function route(p,u){
+    var on=!!(g&&g.spk),t=g&&g.tiles[u],v=t&&t.querySelector("video");
+    if(on){
+      var ctx=CALLS.actx();
+      if(ctx&&p.remote&&!p.src){
+        try{p.src=ctx.createMediaStreamSource(p.remote);p.gain=ctx.createGain();p.src.connect(p.gain);p.gain.connect(ctx.destination)}
+        catch(e){p.src=null;p.gain=null}
+      }
+      if(v&&p.src)v.muted=true;
+    }else{
+      try{if(p.src)p.src.disconnect();if(p.gain)p.gain.disconnect()}catch(e){}
+      p.src=null;p.gain=null;
+      if(v)v.muted=false;
+    }
+  }
+  function applySpk(){
+    if(!g)return;
+    try{if(navigator.audioSession)navigator.audioSession.type=g.spk?"playback":"play-and-record"}catch(e){}
+    Object.keys(g.peers).forEach(function(u){route(g.peers[u],u)});
+  }
+  function capBitrate(pc){
+    try{pc.getSenders().forEach(function(s){
+      if(s.track&&s.track.kind==="video"){
+        var pr=s.getParameters();if(!pr.encodings||!pr.encodings.length)pr.encodings=[{}];
+        pr.encodings[0].maxBitrate=200000;s.setParameters(pr).catch(function(){});
+      }
+    })}catch(e){}
+  }
+
+  /* ---------- connexions entre participants ---------- */
+  function sigTo(to,o){
+    if(!g||!g.ch)return;
+    o.to=to;o.from=me.id;
+    try{g.ch.send({type:"broadcast",event:"sig",payload:o})}catch(e){}
+  }
+  function mkPeer(u){
+    var p=g.peers[u];if(p)return p;
+    p={pend:[],ready:false,offered:false,src:null,gain:null,remote:null,lastOffer:null};
+    var pc=new RTCPeerConnection({iceServers:CALLS.ice});p.pc=pc;
+    g.stream.getTracks().forEach(function(t){pc.addTrack(t,g.stream)});
+    pc.onicecandidate=function(e){if(e.candidate)sigTo(u,{t:"ice",d:e.candidate.toJSON?e.candidate.toJSON():e.candidate})};
+    pc.ontrack=function(e){
+      if(!g||g.peers[u]!==p)return;
+      var rs=(e.streams&&e.streams[0])||new MediaStream([e.track]);
+      p.remote=rs;
+      var t=g.tiles[u];
+      if(t){
+        var v=t.querySelector("video");
+        if(v.srcObject!==rs){v.srcObject=rs;var pl=v.play();if(pl&&pl.catch)pl.catch(function(){})}
+        t.classList.toggle("hv",rs.getVideoTracks().length>0);
+      }
+      if(g.spk)route(p,u);
+    };
+    pc.onconnectionstatechange=function(){
+      if(!g||g.peers[u]!==p)return;
+      var t=g.tiles[u],s=pc.connectionState;
+      if(t)t.classList.toggle("bad",s==="failed");
+      if(s==="connected")capBitrate(pc);
+    };
+    g.peers[u]=p;
+    return p;
+  }
+  function resetPeer(u){
+    var p=g&&g.peers[u];if(!p)return;
+    if(p.rt){clearTimeout(p.rt);p.rt=null}
+    try{if(p.src)p.src.disconnect();if(p.gain)p.gain.disconnect()}catch(e){}
+    try{p.pc.onconnectionstatechange=null;p.pc.ontrack=null;p.pc.onicecandidate=null;p.pc.close()}catch(e){}
+    delete g.peers[u];
+  }
+  async function flushIce(p){
+    var l=p.pend;p.pend=[];
+    for(var i=0;i<l.length;i++){try{await p.pc.addIceCandidate(l[i])}catch(e){}}
+  }
+  async function doOffer(u,p){
+    try{
+      var o=await p.pc.createOffer();await p.pc.setLocalDescription(o);
+      sigTo(u,{t:"offer",d:p.pc.localDescription});
+      p.rt=setTimeout(function(){
+        if(g&&g.peers[u]===p&&!p.ready&&p.pc.signalingState==="have-local-offer")sigTo(u,{t:"offer",d:p.pc.localDescription});
+      },6000);
+    }catch(e){}
+  }
+  function addPeer(u,nm){
+    ensureTile(u,names[u]||nm||"Membre",false);
+    var p=mkPeer(u);
+    /* règle simple pour éviter les offres croisées : le plus petit identifiant appelle */
+    if(me.id<u&&!p.offered){p.offered=true;doOffer(u,p)}
+  }
+  function dropPeer(u){resetPeer(u);removeTile(u)}
+  function onSync(){
+    if(!g||!g.ch)return;
+    var st=g.ch.presenceState(),keys=Object.keys(st);
+    keys.forEach(function(u){
+      if(u===me.id||g.tiles[u])return;
+      var m=st[u]&&st[u][0];
+      addPeer(u,m&&m.name);
+    });
+    Object.keys(g.tiles).forEach(function(u){
+      if(u===me.id)return;
+      if(keys.indexOf(u)<0)dropPeer(u);
+    });
+    layout();
+  }
+  async function onSig(m){
+    if(!g||!m||m.to!==me.id||!m.from||m.from===me.id)return;
+    var u=m.from,p=g.peers[u];
+    try{
+      if(m.t==="offer"){
+        if(p&&p.lastOffer===m.d.sdp)return;
+        if(p&&p.ready){resetPeer(u);p=null}
+        ensureTile(u,names[u]||"Membre",false);
+        p=mkPeer(u);p.lastOffer=m.d.sdp;
+        await p.pc.setRemoteDescription(m.d);p.ready=true;await flushIce(p);
+        var an=await p.pc.createAnswer();await p.pc.setLocalDescription(an);
+        sigTo(u,{t:"answer",d:p.pc.localDescription});
+      }else if(m.t==="answer"){
+        if(!p||p.pc.signalingState!=="have-local-offer")return;
+        await p.pc.setRemoteDescription(m.d);p.ready=true;await flushIce(p);
+      }else if(m.t==="ice"){
+        if(!p){ensureTile(u,names[u]||"Membre",false);p=mkPeer(u)}
+        if(p.ready)await p.pc.addIceCandidate(m.d);else p.pend.push(m.d);
+      }
+    }catch(e){}
+  }
+
+  /* ---------- boutons de l'appel ---------- */
+  function renderBtns(){
+    if(!g)return;
+    var b=$("gc-btns"),hasCam=g.stream.getVideoTracks().length>0;
+    function btn(id,cls,ic,lb){return '<div class="gc-c"><button type="button" class="gc-b '+cls+'" id="'+id+'">'+ic+'</button><span>'+lb+'</span></div>'}
+    var h=btn("gc-mu","glass",g.muted?"🔇":"🎤",g.muted?"Micro coupé":"Micro");
+    if(g.video&&hasCam)h+=btn("gc-cam",g.camOff?"red":"glass",g.camOff?"🚫":"📷",g.camOff?"Caméra off":"Caméra")+btn("gc-fl","glass","🔄","Retourner");
+    h+=btn("gc-sp",g.spk?"green":"glass","🔊","Son")+btn("gc-end","red","✖","Quitter");
+    b.innerHTML=h;
+    $("gc-end").onclick=function(){leave()};
+    $("gc-sp").onclick=function(){if(!g)return;g.spk=!g.spk;applySpk();renderBtns()};
+    $("gc-mu").onclick=function(){
+      if(!g)return;g.muted=!g.muted;
+      g.stream.getAudioTracks().forEach(function(t){t.enabled=!g.muted});
+      renderBtns();
+    };
+    if($("gc-cam"))$("gc-cam").onclick=function(){
+      if(!g)return;g.camOff=!g.camOff;
+      g.stream.getVideoTracks().forEach(function(t){t.enabled=!g.camOff});
+      renderBtns();
+    };
+    if($("gc-fl"))$("gc-fl").onclick=function(){flip()};
+  }
+  async function flip(){
+    if(!g||!g.video||g.flipping)return;
+    var old=g.stream.getVideoTracks()[0];if(!old)return;
+    g.flipping=true;
+    var face=g.face==="environment"?"user":"environment",nt=null;
+    async function grab(f){
+      var ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:f},width:{ideal:320},height:{ideal:240},frameRate:{ideal:15,max:20}}});
+      return ns.getVideoTracks()[0];
+    }
+    try{
+      old.stop();
+      try{nt=await grab(face);g.face=face}
+      catch(e){nt=await grab(g.face||"user");toast("Impossible de changer de caméra")}
+    }catch(e){toast("Caméra indisponible")}
+    if(nt&&g){
+      try{
+        var ps=Object.keys(g.peers);
+        for(var i=0;i<ps.length;i++){
+          var sd=g.peers[ps[i]].pc.getSenders().filter(function(x){return x.track&&x.track.kind==="video"})[0];
+          if(sd)await sd.replaceTrack(nt);
+        }
+        g.stream.removeTrack(old);g.stream.addTrack(nt);nt.enabled=!g.camOff;
+        var t=g.tiles[me.id];
+        if(t){var v=t.querySelector("video");v.srcObject=null;v.srcObject=g.stream;t.classList.toggle("mir",g.face!=="environment")}
+      }catch(e){}
+    }
+    if(g)g.flipping=false;
+    renderBtns();
+  }
+
+  /* ---------- entrer / quitter ---------- */
+  function errMsg(m){
+    if(/FULL/.test(m))return "L'appel est complet (10 personnes en audio, 4 en vidéo).";
+    if(/ALREADY_ACTIVE/.test(m))return "Un appel vient de démarrer dans ce groupe, réessaie.";
+    return m;
+  }
+  async function start(c,video){
+    if(!c||!c.group)return;
+    if(g||lock){toast("Un appel est déjà en cours");return}
+    if(CALLS.busy()){toast("Termine d'abord ton appel en cours");return}
+    if(offlineMode){alert("Connexion internet nécessaire.");return}
+    if(!ok()){alert("Les appels ne sont pas disponibles sur ce navigateur.");return}
+    lock=true;CALLS.actx();
+    var a=null;
+    try{var r0=await sb.rpc("gcall_active",{cid:c.id});if(r0.data&&r0.data[0])a=r0.data[0]}catch(e){}
+    var vid=a?!!a.gvideo:!!video;
+    var st=await media(vid);
+    if(!st){lock=false;return}
+    var r=a?await sb.rpc("gcall_join",{gid:a.gid}):await sb.rpc("gcall_start",{cid:c.id,with_video:vid});
+    if(r.error){st.getTracks().forEach(function(t){t.stop()});lock=false;alert(errMsg(r.error.message));return}
+    var id=a?a.gid:r.data;
+    lock=false;
+    enter(id,c,vid,st);
+  }
+  function enter(id,c,vid,st){
+    ensureUI();hideInv();CALLS.stopRing();
+    g={id:id,cid:c.id,video:vid,title:title(c),peers:{},tiles:{},stream:st,muted:false,camOff:false,spk:!!vid,face:"user",t0:Date.now()};
+    $("gc-title").textContent=g.title;
+    $("gc-grid").innerHTML="";
+    var t=ensureTile(me.id,"Toi",true);
+    var v=t.querySelector("video");v.muted=true;v.srcObject=st;
+    var pl=v.play();if(pl&&pl.catch)pl.catch(function(){});
+    t.classList.toggle("hv",st.getVideoTracks().length>0);
+    var d=$("gcalld");if(!d.open)d.showModal();
+    renderBtns();layout();
+    g.timer=setInterval(layout,1000);
+    g.ping=setInterval(ping,25000);
+    var done=false,ch=sb.channel("gcall:"+id,{config:{broadcast:{self:false},presence:{key:me.id}}});
+    g.ch=ch;
+    ch.on("broadcast",{event:"sig"},function(p){onSig(p.payload)})
+      .on("presence",{event:"sync"},onSync)
+      .subscribe(async function(s){
+        if(s==="SUBSCRIBED"&&!done){done=true;try{await ch.track({name:names[me.id]||""})}catch(e){}}
+      });
+    if(g.spk)applySpk();
+    var c0=c;chk[c0.id]=0;
+    try{decorate(c0)}catch(e){}
+  }
+  async function ping(){
+    if(!g)return;
+    var id=g.id;
+    try{
+      var r=await sb.rpc("gcall_ping",{gid:id});
+      if(r.error&&g&&g.id===id&&/termin/i.test(r.error.message))leave("Appel terminé");
+    }catch(e){}
+  }
+  async function leave(msg){
+    var x=g;if(!x)return;
+    g=null;lock=false;
+    clearInterval(x.timer);clearInterval(x.ping);
+    try{x.ch.untrack()}catch(e){}
+    Object.keys(x.peers).forEach(function(u){
+      var p=x.peers[u];
+      if(p.rt)clearTimeout(p.rt);
+      try{if(p.src)p.src.disconnect();if(p.gain)p.gain.disconnect()}catch(e){}
+      try{p.pc.onconnectionstatechange=null;p.pc.ontrack=null;p.pc.onicecandidate=null;p.pc.close()}catch(e){}
+    });
+    try{x.stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
+    try{if(navigator.audioSession)navigator.audioSession.type="auto"}catch(e){}
+    var ch=x.ch;setTimeout(function(){try{sb.removeChannel(ch)}catch(e){}},500);
+    var d=$("gcalld");if(d&&d.open)d.close();
+    var gr=$("gc-grid");if(gr)gr.innerHTML="";
+    if(msg)toast(msg);
+    try{await sb.rpc("gcall_leave",{gid:x.id})}catch(e){}
+    act[x.cid]=null;chk[x.cid]=0;
+    var c=convs.filter(function(k){return k.id===x.cid})[0];
+    if(c&&cur===c.id)decorate(c);
+  }
+
+  /* ---------- invitation et bandeau dans la conversation ---------- */
+  function hideInv(){
+    var e=$("gcinv");if(e)e.remove();
+    if(invTimer){clearTimeout(invTimer);invTimer=null}
+    invId=null;
+  }
+  function showInv(row,c){
+    if(g||CALLS.busy())return;
+    hideInv();ensureStyle();
+    var d=document.createElement("div");d.id="gcinv";d.className="gcinv";
+    d.innerHTML='<div><b></b><span></span></div><div style="display:flex;gap:8px"><button type="button" class="no">Ignorer</button><button type="button" class="ok">Rejoindre</button></div>';
+    d.querySelector("b").textContent=(row.video?"📹 ":"📞 ")+title(c);
+    d.querySelector("span").textContent=(names[row.started_by]||"Un membre")+" a lancé un appel de groupe";
+    d.querySelector(".no").onclick=function(){hideInv();if(!CALLS.busy())CALLS.stopRing()};
+    d.querySelector(".ok").onclick=function(){hideInv();CALLS.stopRing();start(c,!!row.video)};
+    document.body.appendChild(d);
+    invId=row.id;
+    CALLS.ring("in");
+    setTimeout(function(){if(!CALLS.busy())CALLS.stopRing()},20000);
+    invTimer=setTimeout(hideInv,45000);
+  }
+  function paint(c){
+    var old=$("gcbar");if(old)old.remove();
+    var a=act[c.id];
+    if(!a||g)return;
+    var top=document.querySelector("#chat .top");if(!top)return;
+    var d=document.createElement("div");d.id="gcbar";d.className="gcbar";
+    d.innerHTML='<span></span><button type="button">Rejoindre</button>';
+    d.querySelector("span").textContent=(a.video?"📹 Appel vidéo":"📞 Appel")+" de groupe en cours"+(a.n?" · "+a.n:"");
+    d.querySelector("button").onclick=function(){start(c,!!a.video)};
+    top.insertAdjacentElement("afterend",d);
+  }
+  function decorate(c){
+    try{
+      if(!c||!c.group)return;
+      ensureStyle();paint(c);
+      var now=Date.now();
+      if(chk[c.id]&&now-chk[c.id]<8000)return;
+      chk[c.id]=now;
+      sb.rpc("gcall_active",{cid:c.id}).then(function(r){
+        var row=r.data&&r.data[0];
+        act[c.id]=row?{id:row.gid,video:row.gvideo,n:row.gn}:null;
+        if(cur===c.id)paint(c);
+      },function(){});
+    }catch(e){}
+  }
+
+  /* ---------- événements base de données ---------- */
+  function onRow(kind,r){
+    if(!me||!r)return;
+    var c=convs.filter(function(k){return k.id===r.conversation_id})[0];
+    if(kind==="I"){
+      if(r.status!=="active"||!c)return;
+      act[r.conversation_id]={id:r.id,video:r.video,n:1};
+      if(r.started_by!==me.id)showInv(r,c);
+      if(cur===r.conversation_id)paint(c);
+    }else if(r.status==="ended"){
+      act[r.conversation_id]=null;
+      if(c&&cur===c.id)paint(c);
+      if(invId===r.id){hideInv();if(!CALLS.busy())CALLS.stopRing()}
+    }
+  }
+  function listen(){
+    if(!me||evt)return;
+    evt=sb.channel("facttos-gcalls")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"group_calls"},function(p){onRow("I",p.new)})
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"group_calls"},function(p){onRow("U",p.new)})
+      .subscribe();
+  }
+  return {ok:ok,start:start,listen:listen,decorate:decorate,busy:function(){return !!(g||lock)}};
 })();
 
 /* ---- Démarrage ---- */
