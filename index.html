@@ -599,7 +599,7 @@ var avatarOf={},readReceipts=true,forceBottom=false,forceSep=false,lastTyping=0,
 function avatarUrl(p){return sb.storage.from("avatars").getPublicUrl(p).data.publicUrl}
 function avatarFor(uid,name,extra){
   var p=uid&&avatarOf[uid];
-  if(p)return '<span class="av'+(extra||"")+'"><img src="'+avatarUrl(p)+'" alt=""></span>';
+  if(p)return '<span class="av'+(extra||"")+'"'+(uid?' data-uid="'+uid+'" data-n="'+esc(String(name))+'"':'')+'><img src="'+avatarUrl(p)+'" alt=""></span>';
   return '<span class="av'+(extra||"")+'"'+(p?' data-uid="'+uid+'" data-n="'+esc(String(name))+'"':'')+' style="background:'+COLORS[hash(String(name))%COLORS.length]+'">'+esc(String(name).charAt(0).toUpperCase())+'</span>';
 }
 function avatar(c){
@@ -2705,9 +2705,8 @@ $("sab").onclick=function(e){
 function openAvatarViewer(uid,name){
   var p=avatarOf[uid];if(!p)return;
   var u=avatarUrl(p);
-  $("api").src=u;$("apfi").src=u;$("apn").textContent=name||"";$("apfn").textContent=name||"";
-  $("apa").hidden=(uid===me.id);$("apm").dataset.u=uid;$("apq").dataset.u=uid;
-  $("apv").showModal();
+  $("apfi").src=u;$("apfn").textContent=name||"";
+  $("apf").showModal();
 }
 document.addEventListener("click",function(e){
   var a=e.target.closest&&e.target.closest(".av[data-uid]");
