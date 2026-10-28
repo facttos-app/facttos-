@@ -1,48 +1,47 @@
-var CACHE="facttos-v3",AV="facttos-avatars";
-var CDN="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
-var SHELL=["./","./index.html","./manifest.json","./confidentialite.html","./icon-192.png","./icon-512.png","./favicon-48.png"];
-self.addEventListener("install",function(e){
-  e.waitUntil(caches.open(CACHE).then(function(c){
-    return Promise.all(SHELL.map(function(u){return c.add(u).catch(function(){})}).concat([c.add(new Request(CDN,{mode:"cors"})).catch(function(){})]));
-  }));
-  self.skipWaiting();
+/* FACTYOS — service worker
+   Principe : on va TOUJOURS chercher la version la plus récente sur le site.
+   La copie gardée en mémoire ne sert que lorsque le téléphone est hors connexion. */
+var CACHE = "factyos-v3";
+var BASE = ["./", "index.html", "confidentialite.html", "manifest.json"];
+
+self.addEventListener("install", function (e) {
+  self.skipWaiting(); // la nouvelle version prend la place de l'ancienne tout de suite
+  e.waitUntil(
+    caches.open(CACHE).then(function (c) {
+      return Promise.all(BASE.map(function (u) { return c.add(u).catch(function () {}); }));
+    })
+  );
 });
-self.addEventListener("activate",function(e){
-  e.waitUntil(caches.keys().then(function(ks){
-    return Promise.all(ks.filter(function(k){return k!==CACHE&&k!==AV}).map(function(k){return caches.delete(k)}));
-  }));
-  self.clients.claim();
+
+self.addEventListener("activate", function (e) {
+  e.waitUntil(
+    caches.keys()
+      .then(function (keys) {
+        return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
+      })
+      .then(function () { return self.clients.claim(); })
+  );
 });
-function timed(r,ms){
-  return new Promise(function(res,rej){
-    var t=setTimeout(function(){rej(new Error("timeout"))},ms);
-    fetch(r).then(function(x){clearTimeout(t);res(x)},function(er){clearTimeout(t);rej(er)});
-  });
-}
-self.addEventListener("fetch",function(e){
-  var r=e.request;
-  if(r.method!=="GET")return;
-  var u=new URL(r.url);
-  if(r.url===CDN){
-    e.respondWith(caches.match(CDN).then(function(m){
-      return m||fetch(new Request(CDN,{mode:"cors"})).then(function(x){var cp=x.clone();caches.open(CACHE).then(function(c){c.put(CDN,cp)});return x});
-    }));
-    return;
-  }
-  if(u.hostname.slice(-12)===".supabase.co"&&u.pathname.indexOf("/storage/v1/object/public/avatars/")===0){
-    e.respondWith(caches.open(AV).then(function(c){
-      return c.match(r.url).then(function(m){
-        var net=fetch(new Request(r.url,{mode:"cors"})).then(function(x){if(x.ok)c.put(r.url,x.clone());return x}).catch(function(){return m});
-        return m||net;
-      });
-    }));
-    return;
-  }
-  if(u.origin!==location.origin)return;
-  e.respondWith(timed(r,5000).then(function(res){
-    if(res.ok){var cp=res.clone();caches.open(CACHE).then(function(c){c.put(r,cp)})}
-    return res;
-  }).catch(function(){
-    return caches.match(r,{ignoreSearch:true}).then(function(m){return m||caches.match("./index.html")});
-  }));
+
+self.addEventListener("fetch", function (e) {
+  var req = e.request;
+  if (req.method !== "GET") return;
+  var url = new URL(req.url);
+  if (url.origin !== self.location.origin) return; // Supabase, polices, CDN : on ne touche à rien
+
+  e.respondWith(
+    fetch(req.url, { cache: "no-store", credentials: "same-origin" })
+      .then(function (res) {
+        if (res && res.ok) {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copy); }).catch(function () {});
+        }
+        return res;
+      })
+      .catch(function () {
+        return caches.match(req).then(function (r) {
+          return r || (req.mode === "navigate" ? caches.match("index.html") : undefined);
+        });
+      })
+  );
 });

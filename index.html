@@ -3043,7 +3043,25 @@ $("rabl").onclick=async function(){
   $("ra").close();renderList();renderChat();
 };
 
-if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+if("serviceWorker" in navigator){
+  window.addEventListener("load",function(){
+    var had=!!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(function(reg){
+      /* on vérifie s'il existe une nouvelle version : au retour dans l'app, puis toutes les 30 minutes */
+      document.addEventListener("visibilitychange",function(){if(!document.hidden){try{reg.update()}catch(e){}}});
+      setInterval(function(){try{reg.update()}catch(e){}},30*60*1000);
+    }).catch(function(){});
+    var shown=false;
+    navigator.serviceWorker.addEventListener("controllerchange",function(){
+      if(!had||shown)return;shown=true;
+      var d=document.createElement("div");
+      d.style.cssText="position:fixed;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:99999;background:#2B1250;color:#fff;padding:12px 14px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.45)";
+      d.innerHTML='<span>Nouvelle version disponible</span><button type="button" style="background:#fff;color:#7B2FF7;border-radius:14px;padding:6px 14px;font-weight:700">Actualiser</button>';
+      d.querySelector("button").onclick=function(){location.reload()};
+      document.body.appendChild(d);
+    });
+  });
+}
 
 
 /* ================= APPELS AUDIO (WebRTC) =================
