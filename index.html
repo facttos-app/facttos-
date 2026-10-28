@@ -224,6 +224,9 @@ dialog.cam{width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none
 .stg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .stc{background:var(--input);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:2px}
 .stc b{font-size:24px}
+button.stc{text-align:left;width:100%;cursor:pointer}
+.stc.stk{position:relative}
+.stc.stk::after{content:"›";position:absolute;right:12px;top:8px;color:var(--mute);font-size:22px;line-height:1}
 .stc span{font-size:12px;color:var(--mute)}
 .urow{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 2px;border-bottom:1px solid var(--line)}
 .tab{font-size:11px;padding:8px 2px 6px}
@@ -1799,16 +1802,62 @@ function seenTxt(t){
   if(m<1440)return "vu il y a "+Math.round(m/60)+" h";
   return "vu le "+new Date(t).toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
 }
+var statKey=null,statLabel="",statCache=null,statCacheAt=0,statTiles={};
+function beninStart(back){ /* minuit à l'heure du Bénin (UTC+1), en remontant de "back" jours */
+  var b=Date.now()+3600000;
+  return Math.floor(b/86400000)*86400000-back*86400000-3600000;
+}
+function userRow(u){
+  return '<button type="button" class="urow" data-u="'+u.id+'" data-b="'+(u.banned?1:0)+'" data-t="'+(u.is_trainer?1:0)+'" data-n="'+esc(u.name||"")+'"><span class="fn">'+avatarFor(null,u.name||"?"," sm")+'<span class="fnm"><b>'+esc(u.name||"Sans nom")+(u.banned?" · SUSPENDU":"")+(u.is_trainer?" · 🎓":"")+'</b><br><small class="mute">'+esc(u.email||"")+'</small></span></span><span class="mute" style="flex:none;text-align:right">'+seenTxt(u.last_seen_at)+'<br><small>inscrit le '+new Date(u.created_at).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})+'</small></span></button>';
+}
+async function loadStatList(key,label){
+  statKey=key;statLabel=label;
+  $("apt").textContent=label;
+  $("apl").innerHTML='<div class="empty">Chargement…</div>';
+  var now=Date.now();
+  if(!statCache||now-statCacheAt>60000){
+    var r=await sb.rpc("admin_users",{flt:"all"});
+    if(r.error){$("apl").innerHTML='<div class="empty">'+esc(r.error.message)+'</div>';return}
+    statCache=r.data||[];statCacheAt=now;
+  }
+  var T0=beninStart(0),T7=beninStart(6),T30=beninStart(29);
+  function ts(x){return x?new Date(x).getTime():0}
+  var F={
+    total:function(u){return true},
+    online:function(u){return ts(u.last_seen_at)>=now-120000},
+    today:function(u){return ts(u.last_seen_at)>=T0},
+    d7:function(u){return ts(u.last_seen_at)>=T7},
+    d30:function(u){return ts(u.last_seen_at)>=T30},
+    new_today:function(u){return ts(u.created_at)>=T0},
+    new_7d:function(u){return ts(u.created_at)>=T7},
+    new_30d:function(u){return ts(u.created_at)>=T30},
+    banned:function(u){return !!u.banned}
+  };
+  var byNew=(key.indexOf("new_")===0||key==="total");
+  var list=statCache.filter(F[key]||F.total).sort(function(a,b){return byNew?ts(b.created_at)-ts(a.created_at):ts(b.last_seen_at)-ts(a.last_seen_at)});
+  var shown=statTiles[key],note="";
+  if(shown!=null&&shown!==list.length)note='<p class="mute" style="margin:0 0 6px">Les statistiques indiquent '+shown+' : la règle de calcul peut différer légèrement de cette liste.</p>';
+  $("apl").innerHTML='<button type="button" class="fc" data-back="1" style="margin-bottom:8px">← Statistiques</button>'
+    +'<p class="mute" style="margin:0 0 6px">'+list.length+' personne'+(list.length>1?'s':'')+(statCache.length>=300?' (300 premières du total)':'')+'</p>'+note
+    +(list.length?list.map(userRow).join(""):'<div class="empty">Personne pour cette rubrique.</div>');
+}
+function refreshUsers(){statCache=null;if(statKey)loadStatList(statKey,statLabel);else loadUsers()}
 async function loadStats(){
+  statKey=null;
   $("apt").textContent="Statistiques";
   $("apl").innerHTML='<div class="empty">Chargement…</div>';
   var r=await sb.rpc("admin_stats");
   if(r.error){$("apl").innerHTML='<div class="empty">'+esc(r.error.message)+'</div>';return}
   var d=r.data||{};
-  var cards=[["Inscrits",d.total],["En ligne maintenant",d.online_now],["Connectés aujourd'hui",d.active_today],["Connectés sur 7 jours",d.active_7d],["Connectés sur 30 jours",d.active_30d],["Nouveaux aujourd'hui",d.new_today],["Nouveaux sur 7 jours",d.new_7d],["Nouveaux sur 30 jours",d.new_30d],["Comptes suspendus",d.banned],["Messages aujourd'hui",d.messages_today],["Conversations",d.conversations],["Groupes",d.groups]];
-  $("apl").innerHTML='<div class="stg">'+cards.map(function(c){return '<div class="stc"><b>'+(c[1]==null?"—":c[1])+'</b><span>'+c[0]+'</span></div>'}).join("")+'</div><p class="mute" style="margin-top:10px">« En ligne » : vu dans les 2 dernières minutes. « Connectés » : au moins une visite sur la période (jours comptés à l\'heure du Bénin). Les visites sont comptées depuis l\'activation de cette fonction.</p>';
+  var cards=[["Inscrits",d.total,"total"],["En ligne maintenant",d.online_now,"online"],["Connectés aujourd'hui",d.active_today,"today"],["Connectés sur 7 jours",d.active_7d,"d7"],["Connectés sur 30 jours",d.active_30d,"d30"],["Nouveaux aujourd'hui",d.new_today,"new_today"],["Nouveaux sur 7 jours",d.new_7d,"new_7d"],["Nouveaux sur 30 jours",d.new_30d,"new_30d"],["Comptes suspendus",d.banned,"banned"],["Messages aujourd'hui",d.messages_today],["Conversations",d.conversations],["Groupes",d.groups]];
+  statTiles={};cards.forEach(function(c){if(c[2])statTiles[c[2]]=c[1]});
+  $("apl").innerHTML='<div class="stg">'+cards.map(function(c){
+    var inner='<b>'+(c[1]==null?"—":c[1])+'</b><span>'+c[0]+'</span>';
+    return c[2]?'<button type="button" class="stc stk" data-k="'+c[2]+'" data-l="'+c[0].replace(/"/g,"&quot;")+'">'+inner+'</button>':'<div class="stc">'+inner+'</div>';
+  }).join("")+'</div><p class="mute" style="margin-top:10px">« En ligne » : vu dans les 2 dernières minutes. « Connectés » : au moins une visite sur la période (jours comptés à l\'heure du Bénin). Les visites sont comptées depuis l\'activation de cette fonction.</p>';
 }
 async function loadUsers(){
+  statKey=null;
   $("apt").textContent="Utilisateurs";
   var r=await sb.rpc("admin_users",{flt:uFilter});
   if(r.error){$("apl").innerHTML='<div class="empty">'+esc(r.error.message)+'</div>';return}
@@ -1832,6 +1881,9 @@ $("atabs").onclick=function(e){
   openPanel();
 };
 $("apl").addEventListener("click",function(e){
+  var k=e.target.closest("button[data-k]");
+  if(k){loadStatList(k.dataset.k,k.dataset.l);return}
+  if(e.target.closest("button[data-back]")){loadStats();return}
   var f=e.target.closest("button[data-uf]");
   if(f){uFilter=f.dataset.uf;loadUsers();return}
   var b=e.target.closest("button.urow");
@@ -1840,12 +1892,12 @@ $("apl").addEventListener("click",function(e){
     sheet([{t:b.dataset.t==="1"?"🎓 Retirer le rôle de formateur":"🎓 Nommer formateur",f:async function(){
       var r0=await sb.rpc("admin_set_trainer",{uid:uid,flag:b.dataset.t!=="1"});
       if(r0.error){alert(r0.error.message);return}
-      loadUsers();
+      refreshUsers();
     }},{t:banned?"✅ Réactiver ce compte":"🚫 Suspendre ce compte",d:!banned,f:async function(){
       if(!confirm((banned?"Réactiver":"Suspendre")+" le compte de "+(b.dataset.n||"cette personne")+" ?"))return;
       var r=await sb.rpc("admin_set_ban",{uid:uid,flag:!banned});
       if(r.error){alert(r.error.message);return}
-      loadUsers();
+      refreshUsers();
     }}]);
   }
 });
