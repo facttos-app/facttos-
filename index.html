@@ -39,6 +39,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--me);outline-off
 .side{display:flex;flex-direction:column;border-right:1px solid var(--line);min-height:0}
 .brand{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px}
 .tools{display:flex;gap:8px}
+#fbtn{width:50px;height:50px;font-size:28px;flex:none;background:linear-gradient(135deg,var(--me),var(--badge));box-shadow:0 3px 10px rgba(123,47,247,.35)}
 .icon-btn{width:40px;height:40px;border-radius:50%;background:var(--input);font-size:19px;line-height:1}
 .me-line{padding:0 16px 8px;font-size:13px;color:var(--mute)}
 .list{overflow-y:auto;flex:1;min-height:0}
@@ -393,9 +394,10 @@ dialog.appop::backdrop{background:rgba(0,0,0,.8)}
       <button class="tab on" id="tabc" type="button"><span class="ti">💬</span><span class="tl">Discussions</span><b class="tb" id="tbc" hidden></b></button>
       <button class="tab" id="tact" type="button"><span class="ti">📰</span><span class="tl">Actu</span><b class="tb" id="tbn" hidden></b></button>
       <button class="tab" id="tcom" type="button"><span class="ti">🏘</span><span class="tl">Communauté</span></button>
-      <button class="tab" id="frb" type="button"><span class="ti">👥</span><span class="tl">Amis</span><b class="tb" id="tbf" hidden></b></button>
+      <button class="tab" id="frb" type="button" hidden><span class="ti">👥</span><span class="tl">Amis</span><b class="tb" id="tbf" hidden></b></button>
       <button class="tab" id="adminb" type="button" hidden><span class="ti">🛡</span><span class="tl">Admin</span><b class="tb" id="tba" hidden></b></button>
-      <button class="tab" id="acc" type="button"><span class="ti">👤</span><span class="tl">Profil</span></button>
+      <button class="tab" id="acc" type="button" hidden><span class="ti">👤</span><span class="tl">Profil</span></button>
+      <button class="tab" id="menub" type="button"><span class="ti">☰</span><span class="tl">Menu</span><b class="tb" id="tbm" hidden></b></button>
     </nav>
   </aside>
   <main class="chat" id="chat"></main>
@@ -2882,13 +2884,14 @@ async function searchPeople(q){
     return frow(x.name,b,x.id);
   }).join(""):'<p class="mute">Aucune personne trouvée.</p>';
 }
-function setTabBadge(id,n){var b=$(id);if(!b)return;b.hidden=!n;b.textContent=n>99?"99+":n}
+function setTabBadge(id,n){var b=$(id);if(!b)return;b.hidden=!n;b.textContent=n>99?"99+":n;if(id==="tbf"){var m=$("tbm");if(m){m.hidden=!n;m.textContent=b.textContent}}}
 var tab="chats";
 function setTab(t){
   if(t!==tab&&t!=="chats"&&tab==="chats")history.pushState({ftab:1},"");
   tab=t;
   $("list").hidden=t!=="chats";$("fd").hidden=t!=="friends";$("pf2").hidden=t!=="profile";$("sp").hidden=t!=="actu";$("cp").hidden=t!=="com";$("sbar").hidden=t!=="chats";$("new").hidden=t!=="chats";
   $("tabc").classList.toggle("on",t==="chats");$("frb").classList.toggle("on",t==="friends");$("acc").classList.toggle("on",t==="profile");$("tact").classList.toggle("on",t==="actu");$("tcom").classList.toggle("on",t==="com");
+  var mb=$("menub");if(mb)mb.classList.toggle("on",t==="friends"||t==="profile");
 }
 $("tabc").onclick=function(){if(history.state&&history.state.ftab&&!cur)history.back();else setTab("chats")};
 async function openFriends(){
@@ -3928,6 +3931,37 @@ var GCALLS=(function(){
       .subscribe();
   }
   return {ok:ok,start:start,listen:listen,decorate:decorate,busy:function(){return !!(g||lock)}};
+})();
+
+
+/* ---- Menu (regroupe Amis et Profil) ---- */
+(function(){
+  var st=document.createElement("style");
+  st.textContent='dialog.mnu{position:fixed;left:0;right:0;bottom:0;top:auto;margin:0 auto;width:100%;max-width:520px;border:0;border-radius:20px 20px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 16px);background:var(--panel);color:var(--ink)}'
+    +'dialog.mnu::backdrop{background:rgba(20,10,40,.45)}'
+    +'.mnh{font-weight:800;font-size:18px;margin:2px 4px 10px}'
+    +'.mni{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px 12px;border-radius:14px;font-size:16px;color:var(--ink)}'
+    +'.mni span{font-size:24px}.mni b{flex:1;font-weight:700}'
+    +'.mni.on{background:var(--input);color:var(--me)}'
+    +'.mni i{font-style:normal;background:var(--badge);color:#fff;border-radius:10px;padding:1px 8px;font-size:12px;font-weight:700}';
+  document.head.appendChild(st);
+  var d=document.createElement("dialog");d.id="menud";d.className="mnu";
+  d.innerHTML='<div class="mnh">Menu</div>'
+    +'<button type="button" class="mni" data-go="friends"><span>👥</span><b>Amis</b><i id="mnbf" hidden></i></button>'
+    +'<button type="button" class="mni" data-go="profile"><span>👤</span><b>Profil</b></button>';
+  document.body.appendChild(d);
+  d.addEventListener("click",function(e){
+    if(e.target===d){d.close();return}
+    var b=e.target.closest("[data-go]");if(!b)return;
+    d.close();
+    if(b.dataset.go==="friends")$("frb").click();else $("acc").click();
+  });
+  $("menub").onclick=function(){
+    var n=$("tbf"),bf=$("mnbf");
+    if(bf){bf.hidden=!n||n.hidden;bf.textContent=n?n.textContent:""}
+    d.querySelectorAll(".mni").forEach(function(x){x.classList.toggle("on",(x.dataset.go==="friends"&&tab==="friends")||(x.dataset.go==="profile"&&tab==="profile"))});
+    d.showModal();
+  };
 })();
 
 /* ---- Démarrage ---- */
