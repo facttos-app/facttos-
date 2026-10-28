@@ -1810,7 +1810,38 @@ function beninStart(back){ /* minuit à l'heure du Bénin (UTC+1), en remontant 
 function userRow(u){
   return '<button type="button" class="urow" data-u="'+u.id+'" data-b="'+(u.banned?1:0)+'" data-t="'+(u.is_trainer?1:0)+'" data-n="'+esc(u.name||"")+'"><span class="fn">'+avatarFor(null,u.name||"?"," sm")+'<span class="fnm"><b>'+esc(u.name||"Sans nom")+(u.banned?" · SUSPENDU":"")+(u.is_trainer?" · 🎓":"")+'</b><br><small class="mute">'+esc(u.email||"")+'</small></span></span><span class="mute" style="flex:none;text-align:right">'+seenTxt(u.last_seen_at)+'<br><small>inscrit le '+new Date(u.created_at).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})+'</small></span></button>';
 }
+async function loadStatMeta(key,label){
+  statKey=key;statLabel=label;
+  $("apt").textContent=label;
+  $("apl").innerHTML='<div class="empty">Chargement…</div>';
+  var r=key==="msgs"?await sb.rpc("admin_stat_messages_today"):await sb.rpc("admin_stat_chats",{only_groups:key==="groups"});
+  if(r.error){$("apl").innerHTML='<button type="button" class="fc" data-back="1" style="margin-bottom:8px">← Statistiques</button><div class="empty">'+esc(r.error.message)+'</div>';return}
+  var d=r.data||[],head,body,total;
+  function pl(n,w){return n+" "+w+(Number(n)>1?"s":"")}
+  if(key==="msgs"){
+    total=d.reduce(function(s,x){return s+Number(x.n)},0);
+    head=pl(d.length,"personne")+" · "+pl(total,"message");
+    body=d.length?d.map(function(x){
+      return '<div class="urow"><span class="fn">'+avatarFor(null,x.uname||"?"," sm")+'<span class="fnm"><b>'+esc(x.uname||"Sans nom")+'</b></span></span><span class="mute" style="flex:none">'+pl(x.n,"message")+'</span></div>';
+    }).join(""):'<div class="empty">Aucun message aujourd\'hui.</div>';
+  }else{
+    total=d.length;
+    head=pl(d.length,key==="groups"?"groupe":"conversation");
+    body=d.length?d.map(function(x){
+      var last=x.c_last?new Date(x.c_last).toLocaleDateString("fr-FR",{day:"numeric",month:"short"}):"—";
+      return '<div class="urow"><span class="fn"><span style="font-size:22px;flex:none">'+(x.c_group?"👥":"💬")+'</span><span class="fnm"><b>'+esc(x.c_group?(x.c_name||"Groupe sans nom"):"Conversation privée")+'</b><br><small class="mute">'
+        +(x.c_group&&x.c_creator?"créé par "+esc(x.c_creator)+" · ":"")+pl(x.c_members,"membre")+" · "+pl(x.c_msgs,"message")
+        +'</small></span></span><span class="mute" style="flex:none;text-align:right"><small>dernier message<br>'+last+'</small></span></div>';
+    }).join(""):'<div class="empty">Rien à afficher.</div>';
+  }
+  var shown=statTiles[key],note="";
+  if(shown!=null&&Number(shown)!==total)note='<p class="mute" style="margin:0 0 6px">Les statistiques indiquent '+shown+' : la règle de calcul peut différer légèrement de cette liste.</p>';
+  $("apl").innerHTML='<button type="button" class="fc" data-back="1" style="margin-bottom:8px">← Statistiques</button>'
+    +'<p class="mute" style="margin:0 0 6px">'+head+'</p>'+note+body
+    +'<p class="mute" style="margin-top:12px;font-size:12px">Le contenu des messages n\'est jamais affiché ici : l\'administrateur ne consulte un message que lorsqu\'il est signalé.</p>';
+}
 async function loadStatList(key,label){
+  if(key==="msgs"||key==="convs"||key==="groups")return loadStatMeta(key,label);
   statKey=key;statLabel=label;
   $("apt").textContent=label;
   $("apl").innerHTML='<div class="empty">Chargement…</div>';
@@ -1849,7 +1880,7 @@ async function loadStats(){
   var r=await sb.rpc("admin_stats");
   if(r.error){$("apl").innerHTML='<div class="empty">'+esc(r.error.message)+'</div>';return}
   var d=r.data||{};
-  var cards=[["Inscrits",d.total,"total"],["En ligne maintenant",d.online_now,"online"],["Connectés aujourd'hui",d.active_today,"today"],["Connectés sur 7 jours",d.active_7d,"d7"],["Connectés sur 30 jours",d.active_30d,"d30"],["Nouveaux aujourd'hui",d.new_today,"new_today"],["Nouveaux sur 7 jours",d.new_7d,"new_7d"],["Nouveaux sur 30 jours",d.new_30d,"new_30d"],["Comptes suspendus",d.banned,"banned"],["Messages aujourd'hui",d.messages_today],["Conversations",d.conversations],["Groupes",d.groups]];
+  var cards=[["Inscrits",d.total,"total"],["En ligne maintenant",d.online_now,"online"],["Connectés aujourd'hui",d.active_today,"today"],["Connectés sur 7 jours",d.active_7d,"d7"],["Connectés sur 30 jours",d.active_30d,"d30"],["Nouveaux aujourd'hui",d.new_today,"new_today"],["Nouveaux sur 7 jours",d.new_7d,"new_7d"],["Nouveaux sur 30 jours",d.new_30d,"new_30d"],["Comptes suspendus",d.banned,"banned"],["Messages aujourd'hui",d.messages_today,"msgs"],["Conversations",d.conversations,"convs"],["Groupes",d.groups,"groups"]];
   statTiles={};cards.forEach(function(c){if(c[2])statTiles[c[2]]=c[1]});
   $("apl").innerHTML='<div class="stg">'+cards.map(function(c){
     var inner='<b>'+(c[1]==null?"—":c[1])+'</b><span>'+c[0]+'</span>';
