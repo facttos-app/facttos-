@@ -3050,27 +3050,8 @@ if("serviceWorker" in navigator){window.addEventListener("load",function(){navig
    Bloc autonome : ne touche à aucune autre fonction de l'app.
    Signalisation : table public.calls (Realtime) + canal broadcast "call:<id>". */
 var CALLS=(function(){
-  var BASE=[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}];
-  var ICE=BASE.slice(),iceAt=0,icePr=null;
-  /* Serveur TURN : identifiants temporaires fournis par la fonction Supabase "turn-credentials".
-     Si la fonction n'existe pas ou échoue, on garde simplement les serveurs STUN ci-dessus. */
-  function loadIce(){
-    if(icePr)return icePr;
-    if(Date.now()-iceAt<3*3600*1000)return Promise.resolve();
-    icePr=(async function(){
-      try{
-        var r=await Promise.race([
-          sb.functions.invoke("turn-credentials",{body:{}}),
-          new Promise(function(_,rej){setTimeout(function(){rej(new Error("délai"))},4000)})
-        ]);
-        var d=r&&r.data;if(typeof d==="string")d=JSON.parse(d);
-        var l=d&&d.iceServers;if(l&&!Array.isArray(l))l=[l];
-        if(l&&l.length){ICE.length=0;BASE.concat(l).forEach(function(s){ICE.push(s)});iceAt=Date.now()}
-      }catch(e){}
-      icePr=null;
-    })();
-    return icePr;
-  }
+  var ICE=[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}
+    /* TURN (à ajouter plus tard) : ,{urls:"turn:HOTE:3478",username:"...",credential:"..."} */];
   var call=null,lock=false,evt=null,ac=null,tone=null,styled=false;
 
   function ok(){return !!(window.RTCPeerConnection&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.isSecureContext)}
@@ -3345,7 +3326,6 @@ var CALLS=(function(){
     lock=true;actx();
     var st=await media(!!video);
     if(!st){lock=false;return}
-    await loadIce();
     var r=await sb.rpc("call_start",{cid:c.id,with_video:!!video});
     if(r.error){st.getTracks().forEach(function(t){t.stop()});lock=false;alert(errMsg(r.error.message));return}
     call={id:r.data,cid:c.id,other:other,name:title(c),role:"out",state:"ringing",stream:st,muted:false,t0:0,video:!!video,spk:!!video,face:"user"};
@@ -3369,7 +3349,6 @@ var CALLS=(function(){
     call.acc=true;stopTone();actx();
     var id=call.id,st=await media(!!call.video);
     if(!st){hangup();return}
-    await loadIce();
     if(!call||call.id!==id){st.getTracks().forEach(function(t){t.stop()});return}
     call.stream=st;
     if(call.to){clearTimeout(call.to);call.to=null}
@@ -3423,13 +3402,13 @@ var CALLS=(function(){
   }
   function listen(){
     if(!me||evt)return;
-    ensureUI();loadIce();
+    ensureUI();
     evt=sb.channel("facttos-calls")
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"calls"},function(p){onRow("I",p.new)})
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"calls"},function(p){onRow("U",p.new)})
       .subscribe(function(st){if(st==="SUBSCRIBED")catchUp()});
   }
-  return {ok:ok,start:start,listen:listen,busy:function(){return !!(call||lock)},ring:startTone,stopRing:stopTone,actx:actx,ice:ICE,loadIce:loadIce};
+  return {ok:ok,start:start,listen:listen,busy:function(){return !!(call||lock)},ring:startTone,stopRing:stopTone,actx:actx,ice:ICE};
 })();
 
 
@@ -3717,7 +3696,6 @@ var GCALLS=(function(){
     var vid=a?!!a.gvideo:!!video;
     var st=await media(vid);
     if(!st){lock=false;return}
-    await CALLS.loadIce();
     var r=a?await sb.rpc("gcall_join",{gid:a.gid}):await sb.rpc("gcall_start",{cid:c.id,with_video:vid});
     if(r.error){st.getTracks().forEach(function(t){t.stop()});lock=false;alert(errMsg(r.error.message));return}
     var id=a?a.gid:r.data;
