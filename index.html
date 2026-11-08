@@ -140,6 +140,7 @@ dialog.sheet{margin:auto auto 0;width:min(520px,100%);max-width:100%;border-radi
 .tab.on{color:var(--me);font-weight:700}
 .tab.on .ti{background:var(--input)}
 .tab .tl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#pubb .tl{font-size:11px}
 .tb{position:absolute;top:2px;left:calc(50% + 4px);background:var(--badge);color:#fff;border-radius:10px;font-size:11px;font-weight:800;padding:1px 6px;min-width:18px;text-align:center}
 .pane{overflow-y:auto;flex:1;min-height:0;padding:4px 16px 12px}
 .side{position:relative}
@@ -397,6 +398,7 @@ dialog.appop::backdrop{background:rgba(0,0,0,.8)}
       <button class="tab" id="frb" type="button" hidden><span class="ti">👥</span><span class="tl">Amis</span><b class="tb" id="tbf" hidden></b></button>
       <button class="tab" id="adminb" type="button" hidden><span class="ti">🛡</span><span class="tl">Admin</span><b class="tb" id="tba" hidden></b></button>
       <button class="tab" id="acc" type="button" hidden><span class="ti">👤</span><span class="tl">Profil</span></button>
+      <button class="tab" id="pubb" type="button"><span class="ti">📰</span><span class="tl">Publications</span></button>
       <button class="tab" id="menub" type="button"><span class="ti">☰</span><span class="tl">Menu</span><b class="tb" id="tbm" hidden></b></button>
     </nav>
   </aside>
@@ -3953,7 +3955,6 @@ var GCALLS=(function(){
   var d=document.createElement("dialog");d.id="menud";d.className="mnu";
   d.innerHTML='<div class="mnh">Menu</div>'
     +'<button type="button" class="mni" data-go="friends"><span>👥</span><b>Amis</b><i id="mnbf" hidden></i></button>'
-    +'<button type="button" class="mni" data-go="pages"><span>📰</span><b>Publications</b></button>'
     +'<button type="button" class="mni" data-go="profile"><span>👤</span><b>Profil</b></button>';
   document.body.appendChild(d);
   d.addEventListener("click",function(e){
@@ -4055,7 +4056,12 @@ var PAGES=(function(){
         +'.pgt{position:relative}.pgt img{width:100%;height:150px;object-fit:cover;border-radius:10px;display:block}.pgg1 .pgt img{height:240px}'
         +'.pgrm{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);color:#fff}'
         +'.pgmg{display:flex;flex-wrap:wrap;gap:8px;max-height:48vh;overflow-y:auto}'
-        +'#pgx.txt:disabled,.pgfol:disabled{opacity:.45}';
+        +'#pgx.txt:disabled,.pgfol:disabled{opacity:.45}'
+        +'.pgcom{display:flex;gap:10px;align-items:flex-start;padding:6px 0}'
+        +'.pgcb{flex:1;min-width:0;background:var(--input);border-radius:14px;padding:8px 12px}'
+        +'.pgcmin{display:flex;gap:8px;align-items:flex-end;padding:8px 10px calc(env(safe-area-inset-bottom,0px) + 8px);border-top:1px solid var(--line);background:var(--panel)}'
+        +'.pgcmin textarea{flex:1;border:1px solid var(--line);border-radius:18px;background:var(--input);color:var(--ink);font-size:16px;padding:10px 14px;resize:none;max-height:110px;font-family:inherit;box-sizing:border-box}'
+        +'.pgcn{font-weight:400}';
       document.head.appendChild(s);
     }
   }
@@ -4162,7 +4168,7 @@ var PAGES=(function(){
       +'<button type="button" class="pgdot" data-pm="1" aria-label="Plus">⋮</button></div>'
       +(p.qbody?'<div style="overflow-wrap:anywhere">'+esc(p.qbody).replace(/\n/g,"<br>")+'</div>':'')
       +(p.qimage?'<img class="pgimg" data-big="'+esc(pub(p.qimage))+'" src="'+esc(pub(p.qimage))+'" alt="" loading="lazy">':'')
-      +'<div class="pgact"><button type="button" class="pgsh" data-share="'+p.qid+'">↪ Partager</button></div>'
+      +'<div class="pgact"><button type="button" class="pgsh" data-share="'+p.qid+'">↪ Partager</button><button type="button" class="pgsh" data-comment="1">💬 Commenter<span class="pgcn"></span></button></div>'
       +'</div>';
   }
   function shareHtml(s){
@@ -4175,6 +4181,7 @@ var PAGES=(function(){
         +(big?'<div class="pgbg" style="background:'+(BGS[s.sbg]||"var(--me)")+'"><span>'+esc(s.sbody||"").replace(/\n/g,"<br>")+'</span></div>'
              :(s.sbody?'<div style="overflow-wrap:anywhere">'+esc(s.sbody).replace(/\n/g,"<br>")+'</div>':''))
         +(imgs.length?'<div class="pgg pgg'+imgs.length+'">'+imgs.map(function(q){return '<img class="pgimg" data-big="'+esc(pubp(q))+'" src="'+esc(pubp(q))+'" alt="" loading="lazy">'}).join("")+'</div>':'')
+        +'<div class="pgact"><button type="button" class="pgsh" data-comment="1">💬 Commenter<span class="pgcn"></span></button></div>'
         +'</div>';
     }
     return '<div class="pgcard" data-sid="'+s.sid+'" data-suser="'+s.suser+'">'
@@ -4185,7 +4192,7 @@ var PAGES=(function(){
       +'<span class="pgm"><b>'+esc(s.qpname)+'</b><small>'+ago(s.qcreated)+'</small></span></div>'
       +(s.qbody?'<div style="overflow-wrap:anywhere">'+esc(s.qbody).replace(/\n/g,"<br>")+'</div>':'')
       +(s.qimage?'<img class="pgimg" data-big="'+esc(pub(s.qimage))+'" src="'+esc(pub(s.qimage))+'" alt="" loading="lazy">':'')
-      +'</div></div>';
+      +'</div><div class="pgact"><button type="button" class="pgsh" data-comment="1">💬 Commenter<span class="pgcn"></span></button></div></div>';
   }
   function renderHome(){
     var isPg=st.tab==="discover"||st.tab==="following"||st.tab==="mine";
@@ -4215,7 +4222,7 @@ var PAGES=(function(){
         .concat(sh.map(function(s){return {d:new Date(s.screated).getTime(),h:shareHtml(s)}}))
         .sort(function(a,b){return b.d-a.d});
       if(!$("pgl"))return;
-      $("pgl").innerHTML=card+(l.length?l.map(function(x){return x.h}).join(""):'<p class="mute">'+(pw?'Aucune actualité pour le moment. Sois le premier à publier !':'Ton fil est vide. Publie quelque chose, ajoute des amis ou suis des pages.')+'</p>');
+      $("pgl").innerHTML=card+(l.length?l.map(function(x){return x.h}).join(""):'<p class="mute">'+(pw?'Aucune actualité pour le moment. Sois le premier à publier !':'Ton fil est vide. Publie quelque chose, ajoute des amis ou suis des pages.')+'</p>');applyCounts($("pgl"));
     }else{
       var r2=await sb.rpc("pages_list",{p_kind:tab,p_q:st.q||null,p_id:null});
       if(st.tab!==tab||!$("pgl"))return;
@@ -4252,7 +4259,7 @@ var PAGES=(function(){
     if(st.view!=="page"||!$("pgposts"))return;
     if(pr.error){$("pgposts").innerHTML=errBox(pr.error);return}
     var l=pr.data||[];
-    $("pgposts").innerHTML=l.length?l.map(function(p){return postHtml(p,false)}).join(""):'<p class="mute">Aucune publication pour le moment.</p>';
+    $("pgposts").innerHTML=l.length?l.map(function(p){return postHtml(p,false)}).join(""):'<p class="mute">Aucune publication pour le moment.</p>';applyCounts($("pgposts"));
   }
   function pageMenu(){
     var pg=st.pg;if(!pg)return;
@@ -4431,6 +4438,105 @@ var PAGES=(function(){
     updateCompose();
   }
 
+  /* ---------- commentaires ---------- */
+  var cm={kind:null,id:null,card:null,busy:false};
+  function ensureComments(){
+    if($("pgcm"))return;
+    var d=document.createElement("dialog");d.id="pgcm";d.className="pgsd";
+    d.innerHTML='<div class="pgh"><button type="button" id="pgcmb" aria-label="Fermer">←</button><h2>Commentaires</h2></div>'
+      +'<div class="pgbody" id="pgcml"></div>'
+      +'<div class="pgcmin"><textarea id="pgcmt" rows="1" maxlength="1000" placeholder="Écrire un commentaire…"></textarea><button type="button" class="pgfol" id="pgcms">Envoyer</button></div>';
+    document.body.appendChild(d);
+    d.addEventListener("cancel",function(e){e.preventDefault();closeComments()});
+    $("pgcmb").onclick=closeComments;
+    $("pgcms").onclick=sendComment;
+    $("pgcmt").addEventListener("input",function(){this.style.height="auto";this.style.height=Math.min(this.scrollHeight,110)+"px"});
+    $("pgcml").addEventListener("click",function(e){
+      var b=e.target.closest("[data-cm]");if(b)commentMenu(b.closest("[data-cid]"));
+    });
+    if(window.visualViewport){
+      window.visualViewport.addEventListener("resize",fitVV);
+      window.visualViewport.addEventListener("scroll",fitVV);
+    }
+  }
+  function fitVV(){
+    var d=$("pgcm"),vv=window.visualViewport;
+    if(!d||!d.open||!vv)return;
+    d.style.height=vv.height+"px";d.style.top=vv.offsetTop+"px";d.style.bottom="auto";
+  }
+  function closeComments(){
+    var d=$("pgcm");if(!d)return;
+    d.close();d.style.height="";d.style.top="";d.style.bottom="";
+  }
+  function openComments(card){
+    if(!card)return;
+    if(offlineMode){alert("Connexion internet nécessaire.");return}
+    ensureUI();ensureComments();
+    cm.kind=card.dataset.sid?"user":"page";cm.id=card.dataset.sid||card.dataset.post;cm.card=card;
+    $("pgcml").innerHTML='<p class="mute">Chargement…</p>';
+    $("pgcmt").value="";$("pgcmt").style.height="auto";
+    $("pgcm").showModal();fitVV();
+    loadComments(true);
+  }
+  function setCount(n){
+    var b=cm.card&&cm.card.querySelector(".pgcn");
+    if(b)b.textContent=n>0?" · "+n:"";
+  }
+  function commentHtml(c){
+    return '<div class="pgcom" data-cid="'+c.kid+'" data-cuser="'+c.kuser+'">'+avatarFor(c.kuser,c.kname,"")
+      +'<div class="pgcb"><b>'+esc(c.kname)+'</b> <small class="mute">'+ago(c.kcreated)+'</small><div style="overflow-wrap:anywhere">'+esc(c.kbody).replace(/\n/g,"<br>")+'</div></div>'
+      +'<button type="button" class="pgdot" data-cm="1" aria-label="Plus">⋮</button></div>';
+  }
+  async function loadComments(scroll){
+    var r=await sb.rpc("post_comments_list",{p_kind:cm.kind,p_id:cm.id,p_before:null,p_lim:100});
+    var box=$("pgcml");if(!box)return;
+    if(r.error){box.innerHTML=errBox(r.error);return}
+    var l=r.data||[];
+    await loadAvatars(l.map(function(x){return x.kuser}));
+    box=$("pgcml");if(!box)return;
+    box.innerHTML=l.length?l.map(commentHtml).join(""):'<p class="mute">Aucun commentaire. Sois le premier à commenter !</p>';
+    setCount(l.length);
+    if(scroll!==false)box.scrollTop=box.scrollHeight;
+  }
+  async function sendComment(){
+    var ta=$("pgcmt"),txt=ta.value.trim();
+    if(!txt||cm.busy)return;
+    cm.busy=true;$("pgcms").disabled=true;
+    var r=await sb.rpc("post_comment_add",{p_kind:cm.kind,p_id:cm.id,p_body:txt});
+    cm.busy=false;$("pgcms").disabled=false;
+    if(r.error){alert(r.error.message);return}
+    ta.value="";ta.style.height="auto";
+    await loadComments(true);
+  }
+  function commentMenu(row){
+    if(!row)return;
+    var id=row.dataset.cid,who=row.dataset.cuser,card=cm.card,it=[];
+    var owner=card?(card.dataset.sid?card.dataset.suser:card.dataset.owner):null;
+    if(who===me.id||owner===me.id||isAdmin)it.push({t:"🗑 Supprimer ce commentaire",d:true,f:async function(){
+      if(!confirm("Supprimer ce commentaire ?"))return;
+      var r=await sb.rpc("post_comment_delete",{p_id:id});
+      if(r.error){alert(r.error.message);return}
+      loadComments(false);
+    }});
+    if(who!==me.id)it.push({t:"⚑ Signaler ce commentaire",d:true,f:function(){openRa(who,null,null);$("rad").value="Commentaire : "+id}});
+    if(it.length)sheet(it);
+  }
+  async function applyCounts(root){
+    if(!root)return;
+    var map={},ids=[];
+    root.querySelectorAll("[data-post],[data-sid]").forEach(function(c){
+      var id=c.dataset.sid||c.dataset.post;
+      if(id&&!map[id]){map[id]=c;ids.push(id)}
+    });
+    if(!ids.length)return;
+    var r=await sb.rpc("comment_counts",{p_ids:ids});
+    if(r.error||!r.data)return;
+    r.data.forEach(function(x){
+      var c=map[x.cid],b=c&&c.querySelector(".pgcn");
+      if(b)b.textContent=Number(x.n)>0?" · "+x.n:"";
+    });
+  }
+
   /* ---------- partages sur le profil ---------- */
   function openShare(postId,card){
     ensureUI();
@@ -4462,7 +4568,7 @@ var PAGES=(function(){
     var l=r.data||[];
     await loadAvatars(l.map(function(x){return x.suser}));
     b2=$(boxId);if(!b2)return;
-    b2.innerHTML=l.length?l.map(shareHtml).join(""):'<p class="mute">Aucune publication partagée.</p>';
+    b2.innerHTML=l.length?l.map(shareHtml).join(""):'<p class="mute">Aucune publication partagée.</p>';applyCounts(b2);
   }
 
   /* ---------- créer / modifier ---------- */
@@ -4514,6 +4620,7 @@ var PAGES=(function(){
   /* ---------- clics ---------- */
   function onClick(e){
     var t=e.target,x;
+    if((x=t.closest("[data-comment]"))){openComments(x.closest("[data-sid],[data-post]"));return}
     if((x=t.closest("[data-tab]"))){st.tab=x.dataset.tab;renderHome();return}
     if(t.closest("[data-compose]")){compose();return}
     if(t.closest("#pgaud")){sheet(["all","friends","me"].map(function(k){return {t:AUDS[k][0]+" "+AUDS[k][1],f:function(){cs.aud=k;paintCompose();saveDraft()}}}));return}
@@ -4535,6 +4642,8 @@ var PAGES=(function(){
   }
   return {open:open,openPage:openPage,loadShares:loadShares,compose:compose};
 })();
+
+(function(){var b=$("pubb");if(b)b.onclick=function(){if(PAGES)PAGES.open()}})();
 
 /* ---- Démarrage ---- */
 (async function(){
